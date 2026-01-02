@@ -4,6 +4,7 @@ import { TemperatureCard } from '@/components/aquarium/TemperatureCard';
 import { RelayCard } from '@/components/aquarium/RelayCard';
 import { EnergyCard } from '@/components/aquarium/EnergyCard';
 import { QuickStats } from '@/components/aquarium/QuickStats';
+import { MarineParametersCard } from '@/components/aquarium/MarineParametersCard';
 import { useAquariumData } from '@/hooks/useAquariumData';
 import { Fish } from 'lucide-react';
 
@@ -16,6 +17,7 @@ const Index = () => {
     toggleRelay,
     updateRelay,
     energy,
+    marineParams,
   } = useAquariumData();
 
   return (
@@ -40,7 +42,7 @@ const Index = () => {
           {/* Quick Stats */}
           <QuickStats />
 
-          {/* Main Grid */}
+          {/* Main Grid - Temperature and Marine Parameters */}
           <div className="grid lg:grid-cols-2 gap-6">
             {/* Temperature */}
             <TemperatureCard 
@@ -49,9 +51,12 @@ const Index = () => {
               history={temperatureHistory}
             />
 
-            {/* Energy */}
-            <EnergyCard energy={energy} />
+            {/* Marine Parameters */}
+            <MarineParametersCard params={marineParams} />
           </div>
+
+          {/* Energy Card */}
+          <EnergyCard energy={energy} />
 
           {/* Relays Section */}
           <div>

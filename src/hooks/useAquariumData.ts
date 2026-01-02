@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Relay, TemperatureReading, EnergyData, Alert } from '@/types/aquarium';
+import { Relay, TemperatureReading, EnergyData, Alert, MarineParameters, ParameterReading } from '@/types/aquarium';
 
 // Relays 0 and 1 have fixed names (Aquecedor and Resfriamento - controlled by temperature)
 const RELAY_DEFAULTS: Relay[] = [
@@ -15,6 +15,20 @@ const RELAY_DEFAULTS: Relay[] = [
   { id: 9, name: 'Relé 10', state: false, autoMode: false, timerEnabled: false, timerOnHour: 0, timerOnMinute: 0, timerOffHour: 0, timerOffMinute: 0, icon: 'power' },
 ];
 
+const generateParameterHistory = (baseValue: number, variation: number, decimals: number = 2): ParameterReading[] => {
+  const history: ParameterReading[] = [];
+  const now = new Date();
+  for (let i = 24; i >= 0; i--) {
+    const timestamp = new Date(now.getTime() - i * 60 * 60 * 1000);
+    const fluctuation = Math.sin(i / 6) * variation + (Math.random() - 0.5) * (variation / 2);
+    history.push({
+      timestamp,
+      value: parseFloat((baseValue + fluctuation).toFixed(decimals)),
+    });
+  }
+  return history;
+};
+
 export function useAquariumData() {
   const [temperature, setTemperature] = useState(25.5);
   const [temperatureSetpoint, setTemperatureSetpoint] = useState(26.0);
@@ -27,34 +41,59 @@ export function useAquariumData() {
     cost: 24.80,
   });
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  
+  // Marine parameters
+  const [marineParams, setMarineParams] = useState<MarineParameters>({
+    ph: 8.2,
+    phHistory: [],
+    salinity: 35.0,
+    salinityHistory: [],
+    orp: 380,
+    orpHistory: [],
+  });
 
-  // Simulate temperature readings
+  // Initialize history data
   useEffect(() => {
-    const generateHistory = () => {
-      const history: TemperatureReading[] = [];
-      const now = new Date();
-      for (let i = 24; i >= 0; i--) {
-        const timestamp = new Date(now.getTime() - i * 60 * 60 * 1000);
-        const baseTemp = 25.5;
-        const variation = Math.sin(i / 4) * 0.5 + (Math.random() - 0.5) * 0.3;
-        history.push({
-          timestamp,
-          value: parseFloat((baseTemp + variation).toFixed(1)),
-        });
-      }
-      return history;
-    };
+    const tempHistory = generateParameterHistory(25.5, 0.5, 1);
+    setTemperatureHistory(tempHistory);
+    
+    setMarineParams({
+      ph: 8.2,
+      phHistory: generateParameterHistory(8.2, 0.15, 2),
+      salinity: 35.0,
+      salinityHistory: generateParameterHistory(35.0, 0.5, 1),
+      orp: 380,
+      orpHistory: generateParameterHistory(380, 20, 0),
+    });
+  }, []);
 
-    setTemperatureHistory(generateHistory());
-
+  // Simulate real-time updates
+  useEffect(() => {
     const interval = setInterval(() => {
-      const variation = (Math.random() - 0.5) * 0.2;
-      const newTemp = parseFloat((temperature + variation).toFixed(1));
+      // Temperature
+      const tempVariation = (Math.random() - 0.5) * 0.2;
+      const newTemp = parseFloat((temperature + tempVariation).toFixed(1));
       setTemperature(newTemp);
       
       setTemperatureHistory(prev => {
         const newHistory = [...prev, { timestamp: new Date(), value: newTemp }];
         return newHistory.slice(-25);
+      });
+
+      // Marine parameters
+      setMarineParams(prev => {
+        const newPh = parseFloat((prev.ph + (Math.random() - 0.5) * 0.05).toFixed(2));
+        const newSalinity = parseFloat((prev.salinity + (Math.random() - 0.5) * 0.2).toFixed(1));
+        const newOrp = Math.round(prev.orp + (Math.random() - 0.5) * 10);
+        
+        return {
+          ph: Math.max(7.8, Math.min(8.6, newPh)),
+          phHistory: [...prev.phHistory, { timestamp: new Date(), value: newPh }].slice(-25),
+          salinity: Math.max(33, Math.min(37, newSalinity)),
+          salinityHistory: [...prev.salinityHistory, { timestamp: new Date(), value: newSalinity }].slice(-25),
+          orp: Math.max(300, Math.min(450, newOrp)),
+          orpHistory: [...prev.orpHistory, { timestamp: new Date(), value: newOrp }].slice(-25),
+        };
       });
 
       // Random energy fluctuation
@@ -105,5 +144,6 @@ export function useAquariumData() {
     alerts,
     addAlert,
     dismissAlert,
+    marineParams,
   };
 }

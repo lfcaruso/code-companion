@@ -17,6 +17,20 @@ export interface TemperatureReading {
   value: number;
 }
 
+export interface ParameterReading {
+  timestamp: Date;
+  value: number;
+}
+
+export interface MarineParameters {
+  ph: number;
+  phHistory: ParameterReading[];
+  salinity: number; // in ppt (parts per thousand)
+  salinityHistory: ParameterReading[];
+  orp: number; // in mV
+  orpHistory: ParameterReading[];
+}
+
 export interface EnergyData {
   currentWatts: number;
   dailyKwh: number;
