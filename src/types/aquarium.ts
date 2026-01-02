@@ -1,0 +1,31 @@
+export interface Relay {
+  id: number;
+  name: string;
+  state: boolean;
+  autoMode: boolean;
+  timerEnabled: boolean;
+  timerOnHour: number;
+  timerOnMinute: number;
+  timerOffHour: number;
+  timerOffMinute: number;
+  icon: string;
+}
+
+export interface TemperatureReading {
+  timestamp: Date;
+  value: number;
+}
+
+export interface EnergyData {
+  currentWatts: number;
+  dailyKwh: number;
+  monthlyKwh: number;
+  cost: number;
+}
+
+export interface Alert {
+  id: string;
+  type: 'warning' | 'error' | 'info';
+  message: string;
+  timestamp: Date;
+}
