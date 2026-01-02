@@ -9,6 +9,7 @@ export interface Relay {
   timerOffHour: number;
   timerOffMinute: number;
   icon: string;
+  isFixed?: boolean; // For relays with fixed names (Aquecedor and Resfriamento)
 }
 
 export interface TemperatureReading {
