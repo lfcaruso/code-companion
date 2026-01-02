@@ -1,13 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Relay, TemperatureReading, EnergyData, Alert } from '@/types/aquarium';
 
+// Relays 0 and 1 have fixed names (Aquecedor and Resfriamento - controlled by temperature)
 const RELAY_DEFAULTS: Relay[] = [
-  { id: 0, name: 'Iluminação', state: true, autoMode: true, timerEnabled: true, timerOnHour: 8, timerOnMinute: 0, timerOffHour: 20, timerOffMinute: 0, icon: 'sun' },
-  { id: 1, name: 'Filtro', state: true, autoMode: false, timerEnabled: false, timerOnHour: 0, timerOnMinute: 0, timerOffHour: 0, timerOffMinute: 0, icon: 'waves' },
-  { id: 2, name: 'Aquecedor', state: false, autoMode: true, timerEnabled: false, timerOnHour: 0, timerOnMinute: 0, timerOffHour: 0, timerOffMinute: 0, icon: 'thermometer' },
-  { id: 3, name: 'Bomba CO2', state: true, autoMode: true, timerEnabled: true, timerOnHour: 10, timerOnMinute: 0, timerOffHour: 18, timerOffMinute: 0, icon: 'droplets' },
-  { id: 4, name: 'Aerador', state: false, autoMode: true, timerEnabled: true, timerOnHour: 20, timerOnMinute: 0, timerOffHour: 8, timerOffMinute: 0, icon: 'wind' },
-  { id: 5, name: 'Alimentador', state: false, autoMode: true, timerEnabled: true, timerOnHour: 9, timerOnMinute: 0, timerOffHour: 9, timerOffMinute: 5, icon: 'utensils' },
+  { id: 0, name: 'Aquecedor', state: false, autoMode: true, timerEnabled: false, timerOnHour: 0, timerOnMinute: 0, timerOffHour: 0, timerOffMinute: 0, icon: 'thermometer', isFixed: true },
+  { id: 1, name: 'Resfriamento', state: false, autoMode: true, timerEnabled: false, timerOnHour: 0, timerOnMinute: 0, timerOffHour: 0, timerOffMinute: 0, icon: 'snowflake', isFixed: true },
+  { id: 2, name: 'Iluminação', state: true, autoMode: true, timerEnabled: true, timerOnHour: 8, timerOnMinute: 0, timerOffHour: 20, timerOffMinute: 0, icon: 'sun' },
+  { id: 3, name: 'Bomba Principal', state: true, autoMode: false, timerEnabled: false, timerOnHour: 0, timerOnMinute: 0, timerOffHour: 0, timerOffMinute: 0, icon: 'waves' },
+  { id: 4, name: 'Skimmer', state: true, autoMode: false, timerEnabled: false, timerOnHour: 0, timerOnMinute: 0, timerOffHour: 0, timerOffMinute: 0, icon: 'wind' },
+  { id: 5, name: 'Bomba Dosadora', state: false, autoMode: true, timerEnabled: true, timerOnHour: 10, timerOnMinute: 0, timerOffHour: 10, timerOffMinute: 5, icon: 'droplets' },
+  { id: 6, name: 'UV', state: true, autoMode: false, timerEnabled: false, timerOnHour: 0, timerOnMinute: 0, timerOffHour: 0, timerOffMinute: 0, icon: 'zap' },
+  { id: 7, name: 'Wavemaker', state: true, autoMode: false, timerEnabled: false, timerOnHour: 0, timerOnMinute: 0, timerOffHour: 0, timerOffMinute: 0, icon: 'waves' },
+  { id: 8, name: 'Alimentador', state: false, autoMode: true, timerEnabled: true, timerOnHour: 9, timerOnMinute: 0, timerOffHour: 9, timerOffMinute: 5, icon: 'utensils' },
+  { id: 9, name: 'Relé 10', state: false, autoMode: false, timerEnabled: false, timerOnHour: 0, timerOnMinute: 0, timerOffHour: 0, timerOffMinute: 0, icon: 'power' },
 ];
 
 export function useAquariumData() {

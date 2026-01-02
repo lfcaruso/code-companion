@@ -1,4 +1,4 @@
-import { Sun, Waves, Thermometer, Droplets, Wind, Utensils, Timer, Settings2 } from 'lucide-react';
+import { Sun, Waves, Thermometer, Droplets, Wind, Utensils, Timer, Settings2, Snowflake, Zap, Power } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Relay } from '@/types/aquarium';
 import { useState } from 'react';
@@ -11,6 +11,9 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   droplets: Droplets,
   wind: Wind,
   utensils: Utensils,
+  snowflake: Snowflake,
+  zap: Zap,
+  power: Power,
 };
 
 interface RelayCardProps {

@@ -33,7 +33,7 @@ const Index = () => {
             </div>
             <div>
               <h2 className="text-2xl font-bold">Meu Aquário</h2>
-              <p className="text-muted-foreground">Plantado 200L • Água doce tropical</p>
+              <p className="text-muted-foreground">Marinho • ESP32 WiFi</p>
             </div>
           </div>
 
