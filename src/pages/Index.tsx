@@ -5,8 +5,10 @@ import { RelayCard } from '@/components/aquarium/RelayCard';
 import { EnergyCard } from '@/components/aquarium/EnergyCard';
 import { QuickStats } from '@/components/aquarium/QuickStats';
 import { MarineParametersCard } from '@/components/aquarium/MarineParametersCard';
+import { ConnectionSettings } from '@/components/aquarium/ConnectionSettings';
 import { useAquariumData } from '@/hooks/useAquariumData';
-import { Fish } from 'lucide-react';
+import { Fish, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const Index = () => {
   const {
@@ -18,6 +20,9 @@ const Index = () => {
     updateRelay,
     energy,
     marineParams,
+    isConnected,
+    connectionError,
+    refreshConnection,
   } = useAquariumData();
 
   return (
@@ -29,13 +34,31 @@ const Index = () => {
         
         <main className="container mx-auto px-4 py-6 space-y-6">
           {/* Header */}
-          <div className="flex items-center gap-4 mb-8">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/20 animate-pulse-glow">
-              <Fish className="w-8 h-8 text-primary" />
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/20 animate-pulse-glow">
+                <Fish className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold">Meu Aquário</h2>
+                <p className="text-muted-foreground">Marinho • ESP32 WiFi</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold">Meu Aquário</h2>
-              <p className="text-muted-foreground">Marinho • ESP32 WiFi</p>
+            
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={refreshConnection}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+              <ConnectionSettings 
+                isConnected={isConnected} 
+                lastError={connectionError}
+                onUrlChange={refreshConnection}
+              />
             </div>
           </div>
 
