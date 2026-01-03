@@ -7,8 +7,9 @@ import { QuickStats } from '@/components/aquarium/QuickStats';
 import { MarineParametersCard } from '@/components/aquarium/MarineParametersCard';
 import { ConnectionSettings } from '@/components/aquarium/ConnectionSettings';
 import { useAquariumData } from '@/hooks/useAquariumData';
-import { Fish, RefreshCw } from 'lucide-react';
+import { Fish, RefreshCw, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 const Index = () => {
   const {
@@ -54,6 +55,15 @@ const Index = () => {
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
+              <Link to="/settings">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </Link>
               <ConnectionSettings 
                 isConnected={isConnected} 
                 lastError={connectionError}
