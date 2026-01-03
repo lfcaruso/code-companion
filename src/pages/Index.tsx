@@ -6,7 +6,9 @@ import { EnergyCard } from '@/components/aquarium/EnergyCard';
 import { QuickStats } from '@/components/aquarium/QuickStats';
 import { MarineParametersCard } from '@/components/aquarium/MarineParametersCard';
 import { ConnectionSettings } from '@/components/aquarium/ConnectionSettings';
+import { AlertsPanel } from '@/components/aquarium/AlertsPanel';
 import { useAquariumData } from '@/hooks/useAquariumData';
+import { useAlerts } from '@/hooks/useAlerts';
 import { Fish, RefreshCw, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -25,6 +27,13 @@ const Index = () => {
     connectionError,
     refreshConnection,
   } = useAquariumData();
+
+  const { alerts, dismissAlert, clearAllAlerts } = useAlerts({
+    temperature,
+    ph: marineParams.ph,
+    salinity: marineParams.salinity,
+    orp: marineParams.orp,
+  });
 
   return (
     <div className="min-h-screen relative">
@@ -75,8 +84,8 @@ const Index = () => {
           {/* Quick Stats */}
           <QuickStats />
 
-          {/* Main Grid - Temperature and Marine Parameters */}
-          <div className="grid lg:grid-cols-2 gap-6">
+          {/* Main Grid - Temperature, Marine Parameters, and Alerts */}
+          <div className="grid lg:grid-cols-3 gap-6">
             {/* Temperature */}
             <TemperatureCard 
               current={temperature}
@@ -86,6 +95,13 @@ const Index = () => {
 
             {/* Marine Parameters */}
             <MarineParametersCard params={marineParams} />
+
+            {/* Alerts Panel */}
+            <AlertsPanel 
+              alerts={alerts}
+              onDismiss={dismissAlert}
+              onClearAll={clearAllAlerts}
+            />
           </div>
 
           {/* Energy Card */}
