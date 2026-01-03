@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Relay, TemperatureReading, EnergyData, Alert, MarineParameters, ParameterReading } from '@/types/aquarium';
+import { esp32Api, ESP32SensorData } from '@/services/esp32Api';
+import { toast } from 'sonner';
 
 // Relays 0 and 1 have fixed names (Aquecedor and Resfriamento - controlled by temperature)
 const RELAY_DEFAULTS: Relay[] = [
@@ -14,6 +16,19 @@ const RELAY_DEFAULTS: Relay[] = [
   { id: 8, name: 'Alimentador', state: false, autoMode: true, timerEnabled: true, timerOnHour: 9, timerOnMinute: 0, timerOffHour: 9, timerOffMinute: 5, icon: 'utensils' },
   { id: 9, name: 'Relé 10', state: false, autoMode: false, timerEnabled: false, timerOnHour: 0, timerOnMinute: 0, timerOffHour: 0, timerOffMinute: 0, icon: 'power' },
 ];
+
+const RELAY_ICONS: Record<number, string> = {
+  0: 'thermometer',
+  1: 'snowflake',
+  2: 'sun',
+  3: 'waves',
+  4: 'wind',
+  5: 'droplets',
+  6: 'zap',
+  7: 'waves',
+  8: 'utensils',
+  9: 'power',
+};
 
 const generateParameterHistory = (baseValue: number, variation: number, decimals: number = 2): ParameterReading[] => {
   const history: ParameterReading[] = [];
@@ -41,6 +56,9 @@ export function useAquariumData() {
     cost: 24.80,
   });
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const lastConnectionToast = useRef<number>(0);
   
   // Marine parameters
   const [marineParams, setMarineParams] = useState<MarineParameters>({
@@ -67,56 +85,188 @@ export function useAquariumData() {
     });
   }, []);
 
-  // Simulate real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Temperature
-      const tempVariation = (Math.random() - 0.5) * 0.2;
-      const newTemp = parseFloat((temperature + tempVariation).toFixed(1));
-      setTemperature(newTemp);
-      
-      setTemperatureHistory(prev => {
-        const newHistory = [...prev, { timestamp: new Date(), value: newTemp }];
-        return newHistory.slice(-25);
-      });
+  // Process ESP32 data and update state
+  const processESP32Data = useCallback((data: ESP32SensorData) => {
+    const now = new Date();
+    
+    // Update temperature
+    setTemperature(data.temperature);
+    setTemperatureSetpoint(data.temperatureSetpoint);
+    setTemperatureHistory(prev => {
+      const newHistory = [...prev, { timestamp: now, value: data.temperature }];
+      return newHistory.slice(-25);
+    });
 
-      // Marine parameters
-      setMarineParams(prev => {
-        const newPh = parseFloat((prev.ph + (Math.random() - 0.5) * 0.05).toFixed(2));
-        const newSalinity = parseFloat((prev.salinity + (Math.random() - 0.5) * 0.2).toFixed(1));
-        const newOrp = Math.round(prev.orp + (Math.random() - 0.5) * 10);
-        
-        return {
-          ph: Math.max(7.8, Math.min(8.6, newPh)),
-          phHistory: [...prev.phHistory, { timestamp: new Date(), value: newPh }].slice(-25),
-          salinity: Math.max(33, Math.min(37, newSalinity)),
-          salinityHistory: [...prev.salinityHistory, { timestamp: new Date(), value: newSalinity }].slice(-25),
-          orp: Math.max(300, Math.min(450, newOrp)),
-          orpHistory: [...prev.orpHistory, { timestamp: new Date(), value: newOrp }].slice(-25),
-        };
-      });
+    // Update marine parameters
+    setMarineParams(prev => ({
+      ph: data.ph,
+      phHistory: [...prev.phHistory, { timestamp: now, value: data.ph }].slice(-25),
+      salinity: data.salinity,
+      salinityHistory: [...prev.salinityHistory, { timestamp: now, value: data.salinity }].slice(-25),
+      orp: data.orp,
+      orpHistory: [...prev.orpHistory, { timestamp: now, value: data.orp }].slice(-25),
+    }));
 
-      // Random energy fluctuation
-      setEnergy(prev => ({
-        ...prev,
-        currentWatts: Math.floor(75 + Math.random() * 30),
+    // Update relays from ESP32 data
+    if (data.relays && data.relays.length > 0) {
+      setRelays(prev => prev.map((relay, index) => {
+        const espRelay = data.relays.find(r => r.id === index);
+        if (espRelay) {
+          return {
+            ...relay,
+            state: espRelay.state,
+            autoMode: espRelay.autoMode,
+            timerEnabled: espRelay.timerEnabled,
+            timerOnHour: espRelay.timerOnHour ?? relay.timerOnHour,
+            timerOnMinute: espRelay.timerOnMinute ?? relay.timerOnMinute,
+            timerOffHour: espRelay.timerOffHour ?? relay.timerOffHour,
+            timerOffMinute: espRelay.timerOffMinute ?? relay.timerOffMinute,
+          };
+        }
+        return relay;
       }));
-    }, 5000);
+    }
 
-    return () => clearInterval(interval);
-  }, [temperature]);
-
-  const toggleRelay = useCallback((id: number) => {
-    setRelays(prev => prev.map(relay =>
-      relay.id === id ? { ...relay, state: !relay.state } : relay
-    ));
+    // Update energy data
+    if (data.energy) {
+      setEnergy(data.energy);
+    }
   }, []);
 
-  const updateRelay = useCallback((id: number, updates: Partial<Relay>) => {
+  // Fetch data from ESP32
+  const fetchFromESP32 = useCallback(async () => {
+    const response = await esp32Api.fetchSensorData();
+    const now = Date.now();
+    
+    if (response.success && response.data) {
+      if (!isConnected) {
+        setIsConnected(true);
+        setConnectionError(null);
+        if (now - lastConnectionToast.current > 10000) {
+          toast.success('Conectado à ESP32!');
+          lastConnectionToast.current = now;
+        }
+      }
+      processESP32Data(response.data);
+    } else {
+      if (isConnected) {
+        setIsConnected(false);
+        setConnectionError(response.error || 'Erro de conexão');
+        if (now - lastConnectionToast.current > 10000) {
+          toast.error('Conexão com ESP32 perdida', {
+            description: 'Usando dados simulados...'
+          });
+          lastConnectionToast.current = now;
+        }
+      }
+      // Fall back to simulated data
+      simulateData();
+    }
+  }, [isConnected, processESP32Data]);
+
+  // Simulate data when ESP32 is not connected
+  const simulateData = useCallback(() => {
+    const now = new Date();
+    
+    // Temperature simulation
+    setTemperature(prev => {
+      const variation = (Math.random() - 0.5) * 0.2;
+      return parseFloat((prev + variation).toFixed(1));
+    });
+    
+    setTemperatureHistory(prev => {
+      const newHistory = [...prev, { timestamp: now, value: temperature }];
+      return newHistory.slice(-25);
+    });
+
+    // Marine parameters simulation
+    setMarineParams(prev => {
+      const newPh = parseFloat((prev.ph + (Math.random() - 0.5) * 0.05).toFixed(2));
+      const newSalinity = parseFloat((prev.salinity + (Math.random() - 0.5) * 0.2).toFixed(1));
+      const newOrp = Math.round(prev.orp + (Math.random() - 0.5) * 10);
+      
+      return {
+        ph: Math.max(7.8, Math.min(8.6, newPh)),
+        phHistory: [...prev.phHistory, { timestamp: now, value: newPh }].slice(-25),
+        salinity: Math.max(33, Math.min(37, newSalinity)),
+        salinityHistory: [...prev.salinityHistory, { timestamp: now, value: newSalinity }].slice(-25),
+        orp: Math.max(300, Math.min(450, newOrp)),
+        orpHistory: [...prev.orpHistory, { timestamp: now, value: newOrp }].slice(-25),
+      };
+    });
+
+    // Energy simulation
+    setEnergy(prev => ({
+      ...prev,
+      currentWatts: Math.floor(75 + Math.random() * 30),
+    }));
+  }, [temperature]);
+
+  // Poll ESP32 for data
+  useEffect(() => {
+    // Initial fetch
+    fetchFromESP32();
+    
+    // Poll every 3 seconds
+    const interval = setInterval(fetchFromESP32, 3000);
+    return () => clearInterval(interval);
+  }, [fetchFromESP32]);
+
+  const toggleRelay = useCallback(async (id: number) => {
+    const relay = relays.find(r => r.id === id);
+    if (!relay) return;
+
+    const newState = !relay.state;
+    
+    // Optimistic update
+    setRelays(prev => prev.map(r =>
+      r.id === id ? { ...r, state: newState } : r
+    ));
+
+    // Send to ESP32
+    const response = await esp32Api.setRelayState(id, newState);
+    if (!response.success) {
+      // Revert on failure
+      setRelays(prev => prev.map(r =>
+        r.id === id ? { ...r, state: !newState } : r
+      ));
+      toast.error('Erro ao alterar relé', {
+        description: response.error
+      });
+    }
+  }, [relays]);
+
+  const updateRelay = useCallback(async (id: number, updates: Partial<Relay>) => {
+    // Optimistic update
     setRelays(prev => prev.map(relay =>
       relay.id === id ? { ...relay, ...updates } : relay
     ));
-  }, []);
+
+    // If timer settings changed, send to ESP32
+    if ('timerEnabled' in updates || 'timerOnHour' in updates) {
+      const relay = relays.find(r => r.id === id);
+      if (relay) {
+        const response = await esp32Api.setRelayTimer(
+          id,
+          updates.timerEnabled ?? relay.timerEnabled,
+          updates.timerOnHour ?? relay.timerOnHour,
+          updates.timerOnMinute ?? relay.timerOnMinute,
+          updates.timerOffHour ?? relay.timerOffHour,
+          updates.timerOffMinute ?? relay.timerOffMinute
+        );
+        
+        if (!response.success) {
+          toast.error('Erro ao configurar timer', {
+            description: response.error
+          });
+        }
+      }
+    }
+  }, [relays]);
+
+  const refreshConnection = useCallback(() => {
+    fetchFromESP32();
+  }, [fetchFromESP32]);
 
   const addAlert = useCallback((type: Alert['type'], message: string) => {
     const newAlert: Alert = {
@@ -145,5 +295,8 @@ export function useAquariumData() {
     addAlert,
     dismissAlert,
     marineParams,
+    isConnected,
+    connectionError,
+    refreshConnection,
   };
 }
