@@ -1,7 +1,16 @@
 // ESP32 API Service for aquarium data
-// Configure this URL to match your ESP32's IP address
+// When served from ESP32, uses relative URLs (same origin)
+// Custom URL can be set for development/testing purposes
 
-const ESP32_BASE_URL = localStorage.getItem('esp32_url') || 'http://192.168.1.100';
+const getDefaultBaseUrl = (): string => {
+  // Check if custom URL is set in localStorage (for development/external access)
+  const customUrl = localStorage.getItem('esp32_url');
+  if (customUrl) {
+    return customUrl;
+  }
+  // Default to same origin (empty string) when served from ESP32
+  return '';
+};
 
 export interface ESP32SensorData {
   temperature: number;
@@ -40,16 +49,26 @@ class ESP32ApiService {
   private lastError: string | null = null;
 
   constructor() {
-    this.baseUrl = ESP32_BASE_URL;
+    this.baseUrl = getDefaultBaseUrl();
   }
 
   setBaseUrl(url: string) {
+    // Empty string means same origin (served from ESP32)
     this.baseUrl = url;
-    localStorage.setItem('esp32_url', url);
+    if (url) {
+      localStorage.setItem('esp32_url', url);
+    } else {
+      localStorage.removeItem('esp32_url');
+    }
   }
 
   getBaseUrl(): string {
     return this.baseUrl;
+  }
+
+  // Check if using same-origin (served from ESP32)
+  isEmbeddedMode(): boolean {
+    return this.baseUrl === '';
   }
 
   getConnectionStatus(): { isConnected: boolean; lastError: string | null } {

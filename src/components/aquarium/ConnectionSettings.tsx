@@ -21,10 +21,18 @@ interface ConnectionSettingsProps {
 export function ConnectionSettings({ isConnected, lastError, onUrlChange }: ConnectionSettingsProps) {
   const [url, setUrl] = useState(esp32Api.getBaseUrl());
   const [isOpen, setIsOpen] = useState(false);
+  const isEmbedded = esp32Api.isEmbeddedMode();
 
   const handleSave = () => {
     esp32Api.setBaseUrl(url);
     onUrlChange(url);
+    setIsOpen(false);
+  };
+
+  const handleUseEmbedded = () => {
+    setUrl('');
+    esp32Api.setBaseUrl('');
+    onUrlChange('');
     setIsOpen(false);
   };
 
@@ -54,20 +62,33 @@ export function ConnectionSettings({ isConnected, lastError, onUrlChange }: Conn
         <DialogHeader>
           <DialogTitle className="text-foreground">Configuração ESP32</DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Configure o endereço IP da sua ESP32 para receber dados em tempo real.
+            {isEmbedded 
+              ? 'Modo embarcado: página servida diretamente do ESP32.'
+              : 'Configure o endereço IP da sua ESP32 para receber dados em tempo real.'
+            }
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-4">
+          {/* Embedded mode indicator */}
+          {isEmbedded && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 border border-primary/20">
+              <Wifi className="h-4 w-4 text-primary" />
+              <span className="text-sm text-foreground">
+                Modo Embarcado - Servido do ESP32
+              </span>
+            </div>
+          )}
+
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">URL da ESP32</label>
+            <label className="text-sm font-medium text-foreground">URL da ESP32 (opcional)</label>
             <Input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="http://192.168.1.100"
+              placeholder="Deixe vazio para modo embarcado"
               className="bg-background border-border text-foreground"
             />
             <p className="text-xs text-muted-foreground">
-              Exemplo: http://192.168.1.100 ou http://aquario.local
+              Vazio = modo embarcado (mesma origem). Para acesso externo: http://192.168.1.100
             </p>
           </div>
 
@@ -81,7 +102,12 @@ export function ConnectionSettings({ isConnected, lastError, onUrlChange }: Conn
             )}
           </div>
 
-          <div className="flex gap-2 justify-end">
+          <div className="flex gap-2 justify-end flex-wrap">
+            {!isEmbedded && (
+              <Button variant="ghost" onClick={handleUseEmbedded} className="text-muted-foreground">
+                Usar Modo Embarcado
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               <X className="h-4 w-4 mr-2" />
               Cancelar
