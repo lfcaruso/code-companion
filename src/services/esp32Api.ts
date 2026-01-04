@@ -15,9 +15,8 @@ const getDefaultBaseUrl = (): string => {
 export interface ESP32SensorData {
   temperature: number;
   temperatureSetpoint: number;
-  ph: number;
-  salinity: number;
-  orp: number;
+  // pH and TDS are manual input, not from sensors
+  salinity: number; // SG (Specific Gravity) from refractometer
   relays: {
     id: number;
     state: boolean;
@@ -45,20 +44,20 @@ export interface ESP32ConfigData {
   tempSetpoint: number;
   tempHysteresis: number;
   
-  // pH settings
+  // pH settings (manual input)
   phMin: number;
   phMax: number;
   phAlertEnabled: boolean;
   
-  // Salinity settings
+  // Salinity settings (SG - Specific Gravity)
   salinityMin: number;
   salinityMax: number;
   salinityAlertEnabled: boolean;
   
-  // ORP settings
-  orpMin: number;
-  orpMax: number;
-  orpAlertEnabled: boolean;
+  // TDS settings (manual input)
+  tdsMin: number;
+  tdsMax: number;
+  tdsAlertEnabled: boolean;
   
   // General settings
   refreshInterval: number;
