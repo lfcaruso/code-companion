@@ -37,6 +37,36 @@ export interface ESP32SensorData {
   timestamp: string;
 }
 
+// Configuration data structure for EEPROM storage
+export interface ESP32ConfigData {
+  // Temperature settings
+  tempMin: number;
+  tempMax: number;
+  tempSetpoint: number;
+  tempHysteresis: number;
+  
+  // pH settings
+  phMin: number;
+  phMax: number;
+  phAlertEnabled: boolean;
+  
+  // Salinity settings
+  salinityMin: number;
+  salinityMax: number;
+  salinityAlertEnabled: boolean;
+  
+  // ORP settings
+  orpMin: number;
+  orpMax: number;
+  orpAlertEnabled: boolean;
+  
+  // General settings
+  refreshInterval: number;
+  alertsEnabled: boolean;
+  soundEnabled: boolean;
+  autoModeEnabled: boolean;
+}
+
 export interface ESP32Response<T> {
   success: boolean;
   data?: T;
@@ -206,6 +236,84 @@ class ESP32ApiService {
       this.isConnected = true;
       this.lastError = null;
       return { success: true };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Fetch configuration from ESP32 EEPROM
+  async fetchConfig(): Promise<ESP32Response<ESP32ConfigData>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/config`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true, data };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Save configuration to ESP32 EEPROM
+  async saveConfig(config: ESP32ConfigData): Promise<ESP32Response<void>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(config),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Reset ESP32 configuration to factory defaults
+  async resetConfig(): Promise<ESP32Response<ESP32ConfigData>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/config/reset`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true, data };
     } catch (error) {
       this.isConnected = false;
       this.lastError = error instanceof Error ? error.message : 'Unknown error';

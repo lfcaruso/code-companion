@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
+import { esp32Api, ESP32ConfigData } from '@/services/esp32Api';
 import { 
   ArrowLeft, 
   Thermometer, 
@@ -20,37 +20,14 @@ import {
   RotateCcw,
   Settings as SettingsIcon,
   Bell,
-  Wifi
+  Wifi,
+  Download,
+  Upload,
+  Loader2,
+  HardDrive
 } from 'lucide-react';
 
-interface SystemSettings {
-  // Temperature
-  tempMin: number;
-  tempMax: number;
-  tempSetpoint: number;
-  tempHysteresis: number;
-  
-  // pH
-  phMin: number;
-  phMax: number;
-  phAlertEnabled: boolean;
-  
-  // Salinity
-  salinityMin: number;
-  salinityMax: number;
-  salinityAlertEnabled: boolean;
-  
-  // ORP
-  orpMin: number;
-  orpMax: number;
-  orpAlertEnabled: boolean;
-  
-  // General
-  refreshInterval: number;
-  alertsEnabled: boolean;
-  soundEnabled: boolean;
-  autoModeEnabled: boolean;
-}
+type SystemSettings = ESP32ConfigData;
 
 const defaultSettings: SystemSettings = {
   tempMin: 24.0,
@@ -76,35 +53,98 @@ const Settings = () => {
   const { toast } = useToast();
   const [settings, setSettings] = useState<SystemSettings>(defaultSettings);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
+  // Load settings from ESP32 on mount
   useEffect(() => {
-    const saved = localStorage.getItem('aquarium-settings');
-    if (saved) {
-      setSettings(JSON.parse(saved));
-    }
+    loadFromESP32();
   }, []);
+
+  const loadFromESP32 = async () => {
+    setIsLoading(true);
+    const result = await esp32Api.fetchConfig();
+    
+    if (result.success && result.data) {
+      setSettings(result.data);
+      setIsConnected(true);
+      toast({
+        title: "Configurações carregadas",
+        description: "Dados lidos da EEPROM do ESP32.",
+      });
+    } else {
+      // Fallback to localStorage if ESP32 not available
+      const saved = localStorage.getItem('aquarium-settings');
+      if (saved) {
+        setSettings(JSON.parse(saved));
+      }
+      setIsConnected(false);
+      toast({
+        title: "ESP32 não conectado",
+        description: "Usando configurações locais. " + (result.error || ''),
+        variant: "destructive",
+      });
+    }
+    setIsLoading(false);
+  };
 
   const updateSetting = <K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
     setHasChanges(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setIsSaving(true);
+    
+    // Always save to localStorage as backup
     localStorage.setItem('aquarium-settings', JSON.stringify(settings));
+    
+    // Try to save to ESP32 EEPROM
+    const result = await esp32Api.saveConfig(settings);
+    
+    if (result.success) {
+      setIsConnected(true);
+      toast({
+        title: "Salvo na EEPROM",
+        description: "Configurações gravadas no ESP32 com sucesso.",
+      });
+    } else {
+      setIsConnected(false);
+      toast({
+        title: "Salvo localmente",
+        description: "ESP32 não disponível. Configurações salvas apenas no navegador.",
+        variant: "destructive",
+      });
+    }
+    
     setHasChanges(false);
-    toast({
-      title: "Configurações salvas",
-      description: "Todas as alterações foram aplicadas com sucesso.",
-    });
+    setIsSaving(false);
   };
 
-  const handleReset = () => {
-    setSettings(defaultSettings);
+  const handleReset = async () => {
+    setIsLoading(true);
+    
+    // Try to reset on ESP32
+    const result = await esp32Api.resetConfig();
+    
+    if (result.success && result.data) {
+      setSettings(result.data);
+      setIsConnected(true);
+      toast({
+        title: "Reset da EEPROM",
+        description: "Configurações de fábrica restauradas no ESP32.",
+      });
+    } else {
+      setSettings(defaultSettings);
+      toast({
+        title: "Valores padrão",
+        description: "Restaurados valores padrão localmente.",
+      });
+    }
+    
     setHasChanges(true);
-    toast({
-      title: "Configurações restauradas",
-      description: "Valores padrão foram restaurados.",
-    });
+    setIsLoading(false);
   };
 
   return (
@@ -133,12 +173,34 @@ const Settings = () => {
             </div>
             
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={handleReset} className="gap-2">
-                <RotateCcw className="w-4 h-4" />
-                Restaurar
+              {/* Connection status indicator */}
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs ${
+                isConnected 
+                  ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
+                  : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+              }`}>
+                <HardDrive className="w-3 h-3" />
+                {isConnected ? 'EEPROM' : 'Local'}
+              </div>
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={loadFromESP32}
+                disabled={isLoading}
+                className="gap-2"
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                <span className="hidden sm:inline">Ler ESP32</span>
               </Button>
-              <Button onClick={handleSave} disabled={!hasChanges} className="gap-2">
-                <Save className="w-4 h-4" />
+              
+              <Button variant="outline" onClick={handleReset} disabled={isLoading} className="gap-2">
+                <RotateCcw className="w-4 h-4" />
+                <span className="hidden sm:inline">Reset</span>
+              </Button>
+              
+              <Button onClick={handleSave} disabled={!hasChanges || isSaving} className="gap-2">
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 Salvar
               </Button>
             </div>
