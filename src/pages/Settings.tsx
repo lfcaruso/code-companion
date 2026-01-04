@@ -15,7 +15,7 @@ import {
   Thermometer, 
   Droplets, 
   Waves, 
-  Zap, 
+  Activity,
   Save, 
   RotateCcw,
   Settings as SettingsIcon,
@@ -37,12 +37,12 @@ const defaultSettings: SystemSettings = {
   phMin: 8.0,
   phMax: 8.4,
   phAlertEnabled: true,
-  salinityMin: 32,
-  salinityMax: 36,
+  salinityMin: 1.022,
+  salinityMax: 1.028,
   salinityAlertEnabled: true,
-  orpMin: 300,
-  orpMax: 450,
-  orpAlertEnabled: true,
+  tdsMin: 100,
+  tdsMax: 400,
+  tdsAlertEnabled: true,
   refreshInterval: 3,
   alertsEnabled: true,
   soundEnabled: false,
@@ -326,27 +326,27 @@ const Settings = () => {
                   <Waves className="w-5 h-5 text-blue-400" />
                   Salinidade
                 </CardTitle>
-                <CardDescription>Limites em ppt (ideal: 33-35 ppt)</CardDescription>
+                <CardDescription>Limites em SG - Gravidade Específica (ideal: 1.024-1.026)</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground">Mínimo (ppt)</Label>
+                    <Label className="text-sm text-muted-foreground">Mínimo (SG)</Label>
                     <Input
                       type="number"
-                      step="1"
+                      step="0.001"
                       value={settings.salinityMin}
-                      onChange={(e) => updateSetting('salinityMin', parseInt(e.target.value))}
+                      onChange={(e) => updateSetting('salinityMin', parseFloat(e.target.value))}
                       className="font-mono"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground">Máximo (ppt)</Label>
+                    <Label className="text-sm text-muted-foreground">Máximo (SG)</Label>
                     <Input
                       type="number"
-                      step="1"
+                      step="0.001"
                       value={settings.salinityMax}
-                      onChange={(e) => updateSetting('salinityMax', parseInt(e.target.value))}
+                      onChange={(e) => updateSetting('salinityMax', parseFloat(e.target.value))}
                       className="font-mono"
                     />
                   </div>
@@ -365,34 +365,34 @@ const Settings = () => {
               </CardContent>
             </Card>
 
-            {/* ORP Settings */}
-            <Card className="glass-card border-yellow-500/20">
+            {/* TDS Settings */}
+            <Card className="glass-card border-green-500/20">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <Zap className="w-5 h-5 text-yellow-400" />
-                  ORP
+                  <Activity className="w-5 h-5 text-green-400" />
+                  TDS
                 </CardTitle>
-                <CardDescription>Potencial Redox (ideal: 350-450 mV)</CardDescription>
+                <CardDescription>Sólidos Dissolvidos Totais - Entrada Manual (ideal: 100-300 ppm)</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground">Mínimo (mV)</Label>
+                    <Label className="text-sm text-muted-foreground">Mínimo (ppm)</Label>
                     <Input
                       type="number"
                       step="10"
-                      value={settings.orpMin}
-                      onChange={(e) => updateSetting('orpMin', parseInt(e.target.value))}
+                      value={settings.tdsMin}
+                      onChange={(e) => updateSetting('tdsMin', parseInt(e.target.value))}
                       className="font-mono"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground">Máximo (mV)</Label>
+                    <Label className="text-sm text-muted-foreground">Máximo (ppm)</Label>
                     <Input
                       type="number"
                       step="10"
-                      value={settings.orpMax}
-                      onChange={(e) => updateSetting('orpMax', parseInt(e.target.value))}
+                      value={settings.tdsMax}
+                      onChange={(e) => updateSetting('tdsMax', parseInt(e.target.value))}
                       className="font-mono"
                     />
                   </div>
@@ -401,11 +401,11 @@ const Settings = () => {
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                   <div className="flex items-center gap-2">
                     <Bell className="w-4 h-4 text-muted-foreground" />
-                    <Label>Alertas de ORP</Label>
+                    <Label>Alertas de TDS</Label>
                   </div>
                   <Switch
-                    checked={settings.orpAlertEnabled}
-                    onCheckedChange={(v) => updateSetting('orpAlertEnabled', v)}
+                    checked={settings.tdsAlertEnabled}
+                    onCheckedChange={(v) => updateSetting('tdsAlertEnabled', v)}
                   />
                 </div>
               </CardContent>
@@ -465,7 +465,7 @@ const Settings = () => {
 
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                   <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-muted-foreground" />
+                    <SettingsIcon className="w-4 h-4 text-muted-foreground" />
                     <Label>Modo Automático</Label>
                   </div>
                   <Switch

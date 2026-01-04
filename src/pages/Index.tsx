@@ -23,6 +23,7 @@ const Index = () => {
     updateRelay,
     energy,
     marineParams,
+    updateManualParams,
     isConnected,
     connectionError,
     refreshConnection,
@@ -32,7 +33,7 @@ const Index = () => {
     temperature,
     ph: marineParams.ph,
     salinity: marineParams.salinity,
-    orp: marineParams.orp,
+    tds: marineParams.tds,
   });
 
   return (
@@ -82,7 +83,7 @@ const Index = () => {
           </div>
 
           {/* Quick Stats */}
-          <QuickStats />
+          <QuickStats params={marineParams} alertCount={alerts.length} />
 
           {/* Main Grid - Temperature, Marine Parameters, and Alerts */}
           <div className="grid lg:grid-cols-3 gap-6">
@@ -94,7 +95,7 @@ const Index = () => {
             />
 
             {/* Marine Parameters */}
-            <MarineParametersCard params={marineParams} />
+            <MarineParametersCard params={marineParams} onUpdateManualParams={updateManualParams} />
 
             {/* Alerts Panel */}
             <AlertsPanel 

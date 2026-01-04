@@ -60,14 +60,14 @@ export function useAquariumData() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const lastConnectionToast = useRef<number>(0);
   
-  // Marine parameters
+  // Marine parameters (pH and TDS are manual input)
   const [marineParams, setMarineParams] = useState<MarineParameters>({
     ph: 8.2,
     phHistory: [],
-    salinity: 35.0,
+    salinity: 1.025, // SG (Specific Gravity)
     salinityHistory: [],
-    orp: 380,
-    orpHistory: [],
+    tds: 180,
+    tdsHistory: [],
   });
 
   // Initialize history data
@@ -78,10 +78,10 @@ export function useAquariumData() {
     setMarineParams({
       ph: 8.2,
       phHistory: generateParameterHistory(8.2, 0.15, 2),
-      salinity: 35.0,
-      salinityHistory: generateParameterHistory(35.0, 0.5, 1),
-      orp: 380,
-      orpHistory: generateParameterHistory(380, 20, 0),
+      salinity: 1.025,
+      salinityHistory: generateParameterHistory(1.025, 0.002, 3),
+      tds: 180,
+      tdsHistory: generateParameterHistory(180, 20, 0),
     });
   }, []);
 
@@ -97,14 +97,11 @@ export function useAquariumData() {
       return newHistory.slice(-25);
     });
 
-    // Update marine parameters
+    // Update salinity from ESP32 (pH and TDS are manual input)
     setMarineParams(prev => ({
-      ph: data.ph,
-      phHistory: [...prev.phHistory, { timestamp: now, value: data.ph }].slice(-25),
+      ...prev,
       salinity: data.salinity,
       salinityHistory: [...prev.salinityHistory, { timestamp: now, value: data.salinity }].slice(-25),
-      orp: data.orp,
-      orpHistory: [...prev.orpHistory, { timestamp: now, value: data.orp }].slice(-25),
     }));
 
     // Update relays from ESP32 data
@@ -179,19 +176,14 @@ export function useAquariumData() {
       return newHistory.slice(-25);
     });
 
-    // Marine parameters simulation
+    // Salinity simulation only (pH and TDS are manual input)
     setMarineParams(prev => {
-      const newPh = parseFloat((prev.ph + (Math.random() - 0.5) * 0.05).toFixed(2));
-      const newSalinity = parseFloat((prev.salinity + (Math.random() - 0.5) * 0.2).toFixed(1));
-      const newOrp = Math.round(prev.orp + (Math.random() - 0.5) * 10);
+      const newSalinity = parseFloat((prev.salinity + (Math.random() - 0.5) * 0.001).toFixed(3));
       
       return {
-        ph: Math.max(7.8, Math.min(8.6, newPh)),
-        phHistory: [...prev.phHistory, { timestamp: now, value: newPh }].slice(-25),
-        salinity: Math.max(33, Math.min(37, newSalinity)),
+        ...prev,
+        salinity: Math.max(1.020, Math.min(1.030, newSalinity)),
         salinityHistory: [...prev.salinityHistory, { timestamp: now, value: newSalinity }].slice(-25),
-        orp: Math.max(300, Math.min(450, newOrp)),
-        orpHistory: [...prev.orpHistory, { timestamp: now, value: newOrp }].slice(-25),
       };
     });
 
@@ -282,6 +274,18 @@ export function useAquariumData() {
     setAlerts(prev => prev.filter(alert => alert.id !== id));
   }, []);
 
+  // Update manual parameters (pH and TDS)
+  const updateManualParams = useCallback((ph: number, tds: number) => {
+    const now = new Date();
+    setMarineParams(prev => ({
+      ...prev,
+      ph,
+      phHistory: [...prev.phHistory, { timestamp: now, value: ph }].slice(-25),
+      tds,
+      tdsHistory: [...prev.tdsHistory, { timestamp: now, value: tds }].slice(-25),
+    }));
+  }, []);
+
   return {
     temperature,
     temperatureSetpoint,
@@ -295,6 +299,7 @@ export function useAquariumData() {
     addAlert,
     dismissAlert,
     marineParams,
+    updateManualParams,
     isConnected,
     connectionError,
     refreshConnection,

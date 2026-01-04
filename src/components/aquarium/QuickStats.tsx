@@ -1,11 +1,35 @@
-import { Droplets, Gauge, Activity, AlertTriangle } from 'lucide-react';
+import { Droplets, Waves, Activity, AlertTriangle } from 'lucide-react';
+import { MarineParameters } from '@/types/aquarium';
 
-export function QuickStats() {
+interface QuickStatsProps {
+  params: MarineParameters;
+  alertCount: number;
+}
+
+export function QuickStats({ params, alertCount }: QuickStatsProps) {
+  const getPhStatus = (ph: number) => {
+    if (ph >= 8.1 && ph <= 8.4) return 'optimal';
+    if (ph >= 7.9 && ph <= 8.5) return 'warning';
+    return 'alert';
+  };
+
+  const getSalinityStatus = (sg: number) => {
+    if (sg >= 1.024 && sg <= 1.026) return 'optimal';
+    if (sg >= 1.022 && sg <= 1.028) return 'warning';
+    return 'alert';
+  };
+
+  const getTdsStatus = (tds: number) => {
+    if (tds >= 100 && tds <= 300) return 'optimal';
+    if (tds >= 50 && tds <= 400) return 'warning';
+    return 'alert';
+  };
+
   const stats = [
-    { icon: Droplets, label: 'pH', value: '6.8', status: 'optimal', unit: '' },
-    { icon: Gauge, label: 'Pressão', value: '1.2', status: 'optimal', unit: 'bar' },
-    { icon: Activity, label: 'TDS', value: '180', status: 'warning', unit: 'ppm' },
-    { icon: AlertTriangle, label: 'Alertas', value: '2', status: 'alert', unit: '' },
+    { icon: Droplets, label: 'pH', value: params.ph.toFixed(2), status: getPhStatus(params.ph), unit: '' },
+    { icon: Waves, label: 'Salinidade', value: params.salinity.toFixed(3), status: getSalinityStatus(params.salinity), unit: 'SG' },
+    { icon: Activity, label: 'TDS', value: params.tds.toString(), status: getTdsStatus(params.tds), unit: 'ppm' },
+    { icon: AlertTriangle, label: 'Alertas', value: alertCount.toString(), status: alertCount > 0 ? 'alert' : 'optimal', unit: '' },
   ];
 
   const getStatusColor = (status: string) => {

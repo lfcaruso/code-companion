@@ -25,10 +25,10 @@ export interface ParameterReading {
 export interface MarineParameters {
   ph: number;
   phHistory: ParameterReading[];
-  salinity: number; // in ppt (parts per thousand)
+  salinity: number; // in SG (Specific Gravity)
   salinityHistory: ParameterReading[];
-  orp: number; // in mV
-  orpHistory: ParameterReading[];
+  tds: number; // in ppm
+  tdsHistory: ParameterReading[];
 }
 
 export interface EnergyData {

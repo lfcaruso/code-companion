@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Beaker, Droplet, Zap, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Beaker, Droplet, Activity, TrendingUp, TrendingDown, Minus, Edit3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { MarineParameters } from '@/types/aquarium';
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { format } from 'date-fns';
 
 interface MarineParametersCardProps {
   params: MarineParameters;
+  onUpdateManualParams?: (ph: number, tds: number) => void;
 }
 
 const getPhStatus = (ph: number) => {
@@ -17,14 +19,15 @@ const getPhStatus = (ph: number) => {
 };
 
 const getSalinityStatus = (salinity: number) => {
-  if (salinity >= 34 && salinity <= 36) return { status: 'Ideal', color: 'text-green-400' };
-  if (salinity >= 33 && salinity <= 37) return { status: 'Aceitável', color: 'text-yellow-400' };
+  // SG (Specific Gravity) ideal range
+  if (salinity >= 1.024 && salinity <= 1.026) return { status: 'Ideal', color: 'text-green-400' };
+  if (salinity >= 1.022 && salinity <= 1.028) return { status: 'Aceitável', color: 'text-yellow-400' };
   return { status: 'Crítico', color: 'text-red-400' };
 };
 
-const getOrpStatus = (orp: number) => {
-  if (orp >= 350 && orp <= 450) return { status: 'Ideal', color: 'text-green-400' };
-  if (orp >= 300 && orp <= 500) return { status: 'Aceitável', color: 'text-yellow-400' };
+const getTdsStatus = (tds: number) => {
+  if (tds >= 100 && tds <= 300) return { status: 'Ideal', color: 'text-green-400' };
+  if (tds >= 50 && tds <= 400) return { status: 'Aceitável', color: 'text-yellow-400' };
   return { status: 'Crítico', color: 'text-red-400' };
 };
 
@@ -45,12 +48,15 @@ const TrendIcon = ({ trend }: { trend: string }) => {
   return <Minus className="w-4 h-4 text-muted-foreground" />;
 };
 
-export function MarineParametersCard({ params }: MarineParametersCardProps) {
+export function MarineParametersCard({ params, onUpdateManualParams }: MarineParametersCardProps) {
   const [activeTab, setActiveTab] = useState('ph');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editPh, setEditPh] = useState(params.ph.toString());
+  const [editTds, setEditTds] = useState(params.tds.toString());
   
   const phStatus = getPhStatus(params.ph);
   const salinityStatus = getSalinityStatus(params.salinity);
-  const orpStatus = getOrpStatus(params.orp);
+  const tdsStatus = getTdsStatus(params.tds);
 
   const phChartData = params.phHistory.map(reading => ({
     time: format(reading.timestamp, 'HH:mm'),
@@ -62,10 +68,19 @@ export function MarineParametersCard({ params }: MarineParametersCardProps) {
     value: reading.value,
   }));
 
-  const orpChartData = params.orpHistory.map(reading => ({
+  const tdsChartData = params.tdsHistory.map(reading => ({
     time: format(reading.timestamp, 'HH:mm'),
     value: reading.value,
   }));
+
+  const handleSaveManual = () => {
+    const ph = parseFloat(editPh);
+    const tds = parseInt(editTds);
+    if (!isNaN(ph) && !isNaN(tds) && onUpdateManualParams) {
+      onUpdateManualParams(ph, tds);
+    }
+    setIsEditing(false);
+  };
 
   const parameters = [
     {
@@ -79,30 +94,33 @@ export function MarineParametersCard({ params }: MarineParametersCardProps) {
       chartData: phChartData,
       color: 'hsl(var(--primary))',
       idealRange: '8.1 - 8.4',
+      isManual: true,
     },
     {
       id: 'salinity',
       name: 'Salinidade',
-      value: params.salinity.toFixed(1),
-      unit: 'ppt',
+      value: params.salinity.toFixed(3),
+      unit: 'SG',
       icon: Droplet,
       status: salinityStatus,
       trend: getTrend(params.salinityHistory),
       chartData: salinityChartData,
       color: 'hsl(var(--accent))',
-      idealRange: '34 - 36 ppt',
+      idealRange: '1.024 - 1.026 SG',
+      isManual: false,
     },
     {
-      id: 'orp',
-      name: 'ORP',
-      value: params.orp.toString(),
-      unit: 'mV',
-      icon: Zap,
-      status: orpStatus,
-      trend: getTrend(params.orpHistory),
-      chartData: orpChartData,
+      id: 'tds',
+      name: 'TDS',
+      value: params.tds.toString(),
+      unit: 'ppm',
+      icon: Activity,
+      status: tdsStatus,
+      trend: getTrend(params.tdsHistory),
+      chartData: tdsChartData,
       color: 'hsl(142, 76%, 36%)',
-      idealRange: '350 - 450 mV',
+      idealRange: '100 - 300 ppm',
+      isManual: true,
     },
   ];
 
@@ -111,23 +129,71 @@ export function MarineParametersCard({ params }: MarineParametersCardProps) {
   return (
     <Card className="glass-card overflow-hidden">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Beaker className="w-5 h-5 text-primary" />
-          Parâmetros Marinhos
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Beaker className="w-5 h-5 text-primary" />
+            Parâmetros Marinhos
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsEditing(!isEditing)}
+            className="text-xs gap-1"
+          >
+            <Edit3 className="w-3 h-3" />
+            {isEditing ? 'Cancelar' : 'Editar Manual'}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Manual Input Form */}
+        {isEditing && (
+          <div className="p-3 rounded-lg bg-secondary/50 border border-border/30 space-y-3">
+            <p className="text-xs text-muted-foreground">Inserir valores manualmente (pH e TDS)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">pH</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editPh}
+                  onChange={(e) => setEditPh(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">TDS (ppm)</label>
+                <Input
+                  type="number"
+                  step="1"
+                  value={editTds}
+                  onChange={(e) => setEditTds(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+            <Button onClick={handleSaveManual} size="sm" className="w-full">
+              Salvar
+            </Button>
+          </div>
+        )}
+
         {/* Parameter Cards Row */}
         <div className="grid grid-cols-3 gap-3">
           {parameters.map((param) => (
             <button
               key={param.id}
               onClick={() => setActiveTab(param.id)}
-              className={`p-3 rounded-xl transition-all duration-300 text-left
+              className={`p-3 rounded-xl transition-all duration-300 text-left relative
                 ${activeTab === param.id 
                   ? 'bg-primary/20 border border-primary/30 shadow-lg shadow-primary/10' 
                   : 'bg-secondary/50 border border-border/30 hover:bg-secondary/80'}`}
             >
+              {param.isManual && (
+                <span className="absolute top-1 right-1 text-[8px] text-muted-foreground bg-muted/50 px-1 rounded">
+                  MANUAL
+                </span>
+              )}
               <div className="flex items-center gap-2 mb-1">
                 <param.icon className={`w-4 h-4 ${activeTab === param.id ? 'text-primary' : 'text-muted-foreground'}`} />
                 <span className="text-xs text-muted-foreground">{param.name}</span>

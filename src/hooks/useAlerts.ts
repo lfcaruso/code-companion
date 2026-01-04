@@ -13,9 +13,9 @@ interface SystemSettings {
   salinityMin: number;
   salinityMax: number;
   salinityAlertEnabled: boolean;
-  orpMin: number;
-  orpMax: number;
-  orpAlertEnabled: boolean;
+  tdsMin: number;
+  tdsMax: number;
+  tdsAlertEnabled: boolean;
   refreshInterval: number;
   alertsEnabled: boolean;
   soundEnabled: boolean;
@@ -30,12 +30,12 @@ const defaultSettings: SystemSettings = {
   phMin: 8.0,
   phMax: 8.4,
   phAlertEnabled: true,
-  salinityMin: 32,
-  salinityMax: 36,
+  salinityMin: 1.022,
+  salinityMax: 1.028,
   salinityAlertEnabled: true,
-  orpMin: 300,
-  orpMax: 450,
-  orpAlertEnabled: true,
+  tdsMin: 100,
+  tdsMax: 400,
+  tdsAlertEnabled: true,
   refreshInterval: 3,
   alertsEnabled: true,
   soundEnabled: false,
@@ -46,7 +46,7 @@ interface ParameterValues {
   temperature: number;
   ph: number;
   salinity: number;
-  orp: number;
+  tds: number;
 }
 
 // Audio context for alert sounds
@@ -184,7 +184,7 @@ export function useAlerts(params: ParameterValues) {
   useEffect(() => {
     if (!settings.alertsEnabled) return;
 
-    const { temperature, ph, salinity, orp } = params;
+    const { temperature, ph, salinity, tds } = params;
 
     // Temperature checks
     if (temperature < settings.tempMin) {
@@ -193,7 +193,7 @@ export function useAlerts(params: ParameterValues) {
       addAlert('error', `Temperatura alta: ${temperature.toFixed(1)}°C (máx: ${settings.tempMax}°C)`, 'temp-high');
     }
 
-    // pH checks
+    // pH checks (manual input)
     if (settings.phAlertEnabled) {
       if (ph < settings.phMin) {
         addAlert('warning', `pH baixo: ${ph.toFixed(2)} (mín: ${settings.phMin})`, 'ph-low');
@@ -202,21 +202,21 @@ export function useAlerts(params: ParameterValues) {
       }
     }
 
-    // Salinity checks
+    // Salinity checks (SG - Specific Gravity)
     if (settings.salinityAlertEnabled) {
       if (salinity < settings.salinityMin) {
-        addAlert('warning', `Salinidade baixa: ${salinity.toFixed(1)} ppt (mín: ${settings.salinityMin} ppt)`, 'sal-low');
+        addAlert('warning', `Salinidade baixa: ${salinity.toFixed(3)} SG (mín: ${settings.salinityMin})`, 'sal-low');
       } else if (salinity > settings.salinityMax) {
-        addAlert('warning', `Salinidade alta: ${salinity.toFixed(1)} ppt (máx: ${settings.salinityMax} ppt)`, 'sal-high');
+        addAlert('warning', `Salinidade alta: ${salinity.toFixed(3)} SG (máx: ${settings.salinityMax})`, 'sal-high');
       }
     }
 
-    // ORP checks
-    if (settings.orpAlertEnabled) {
-      if (orp < settings.orpMin) {
-        addAlert('info', `ORP baixo: ${orp} mV (mín: ${settings.orpMin} mV)`, 'orp-low');
-      } else if (orp > settings.orpMax) {
-        addAlert('info', `ORP alto: ${orp} mV (máx: ${settings.orpMax} mV)`, 'orp-high');
+    // TDS checks (manual input)
+    if (settings.tdsAlertEnabled) {
+      if (tds < settings.tdsMin) {
+        addAlert('info', `TDS baixo: ${tds} ppm (mín: ${settings.tdsMin} ppm)`, 'tds-low');
+      } else if (tds > settings.tdsMax) {
+        addAlert('info', `TDS alto: ${tds} ppm (máx: ${settings.tdsMax} ppm)`, 'tds-high');
       }
     }
   }, [params, settings, addAlert]);
