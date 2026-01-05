@@ -60,7 +60,7 @@ export function useAquariumData() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const lastConnectionToast = useRef<number>(0);
   
-  // Marine parameters (pH, TDS, KH, Cálcio, Magnésio, Nitrato, Fosfato are manual input)
+  // Marine parameters - all are manual input (pH, Salinidade, TDS, KH, Cálcio, Magnésio, Nitrato, Fosfato)
   const [marineParams, setMarineParams] = useState<MarineParameters>({
     ph: 8.2,
     phHistory: [],
@@ -117,12 +117,7 @@ export function useAquariumData() {
       return newHistory.slice(-25);
     });
 
-    // Update salinity from ESP32 (pH and TDS are manual input)
-    setMarineParams(prev => ({
-      ...prev,
-      salinity: data.salinity,
-      salinityHistory: [...prev.salinityHistory, { timestamp: now, value: data.salinity }].slice(-25),
-    }));
+    // Note: All marine parameters (pH, Salinity, TDS, KH, etc.) are manual input now
 
     // Update relays from ESP32 data
     if (data.relays && data.relays.length > 0) {
@@ -185,7 +180,7 @@ export function useAquariumData() {
   const simulateData = useCallback(() => {
     const now = new Date();
     
-    // Temperature simulation
+    // Temperature simulation only - all marine parameters are manual input
     setTemperature(prev => {
       const variation = (Math.random() - 0.5) * 0.2;
       return parseFloat((prev + variation).toFixed(1));
@@ -194,17 +189,6 @@ export function useAquariumData() {
     setTemperatureHistory(prev => {
       const newHistory = [...prev, { timestamp: now, value: temperature }];
       return newHistory.slice(-25);
-    });
-
-    // Salinity simulation only (pH and TDS are manual input)
-    setMarineParams(prev => {
-      const newSalinity = parseFloat((prev.salinity + (Math.random() - 0.5) * 0.001).toFixed(3));
-      
-      return {
-        ...prev,
-        salinity: Math.max(1.020, Math.min(1.030, newSalinity)),
-        salinityHistory: [...prev.salinityHistory, { timestamp: now, value: newSalinity }].slice(-25),
-      };
     });
 
     // Energy simulation
@@ -294,9 +278,10 @@ export function useAquariumData() {
     setAlerts(prev => prev.filter(alert => alert.id !== id));
   }, []);
 
-  // Update manual parameters (pH, TDS, KH, Cálcio, Magnésio, Nitrato, Fosfato)
+  // Update manual parameters (pH, Salinidade, TDS, KH, Cálcio, Magnésio, Nitrato, Fosfato)
   const updateManualParams = useCallback((params: {
     ph?: number;
+    salinity?: number;
     tds?: number;
     kh?: number;
     calcium?: number;
@@ -311,6 +296,10 @@ export function useAquariumData() {
       if (params.ph !== undefined) {
         updated.ph = params.ph;
         updated.phHistory = [...prev.phHistory, { timestamp: now, value: params.ph }].slice(-25);
+      }
+      if (params.salinity !== undefined) {
+        updated.salinity = params.salinity;
+        updated.salinityHistory = [...prev.salinityHistory, { timestamp: now, value: params.salinity }].slice(-25);
       }
       if (params.tds !== undefined) {
         updated.tds = params.tds;
