@@ -29,6 +29,17 @@ export interface MarineParameters {
   salinityHistory: ParameterReading[];
   tds: number; // in ppm
   tdsHistory: ParameterReading[];
+  // Manual input parameters
+  kh: number; // in dKH
+  khHistory: ParameterReading[];
+  calcium: number; // in ppm
+  calciumHistory: ParameterReading[];
+  magnesium: number; // in ppm
+  magnesiumHistory: ParameterReading[];
+  nitrate: number; // in ppm
+  nitrateHistory: ParameterReading[];
+  phosphate: number; // in ppm
+  phosphateHistory: ParameterReading[];
 }
 
 export interface EnergyData {

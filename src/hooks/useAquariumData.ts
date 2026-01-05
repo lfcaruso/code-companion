@@ -60,7 +60,7 @@ export function useAquariumData() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const lastConnectionToast = useRef<number>(0);
   
-  // Marine parameters (pH and TDS are manual input)
+  // Marine parameters (pH, TDS, KH, Cálcio, Magnésio, Nitrato, Fosfato are manual input)
   const [marineParams, setMarineParams] = useState<MarineParameters>({
     ph: 8.2,
     phHistory: [],
@@ -68,6 +68,16 @@ export function useAquariumData() {
     salinityHistory: [],
     tds: 180,
     tdsHistory: [],
+    kh: 8.0,
+    khHistory: [],
+    calcium: 420,
+    calciumHistory: [],
+    magnesium: 1350,
+    magnesiumHistory: [],
+    nitrate: 5,
+    nitrateHistory: [],
+    phosphate: 0.03,
+    phosphateHistory: [],
   });
 
   // Initialize history data
@@ -82,6 +92,16 @@ export function useAquariumData() {
       salinityHistory: generateParameterHistory(1.025, 0.002, 3),
       tds: 180,
       tdsHistory: generateParameterHistory(180, 20, 0),
+      kh: 8.0,
+      khHistory: generateParameterHistory(8.0, 0.5, 1),
+      calcium: 420,
+      calciumHistory: generateParameterHistory(420, 20, 0),
+      magnesium: 1350,
+      magnesiumHistory: generateParameterHistory(1350, 50, 0),
+      nitrate: 5,
+      nitrateHistory: generateParameterHistory(5, 2, 1),
+      phosphate: 0.03,
+      phosphateHistory: generateParameterHistory(0.03, 0.01, 2),
     });
   }, []);
 
@@ -274,16 +294,51 @@ export function useAquariumData() {
     setAlerts(prev => prev.filter(alert => alert.id !== id));
   }, []);
 
-  // Update manual parameters (pH and TDS)
-  const updateManualParams = useCallback((ph: number, tds: number) => {
+  // Update manual parameters (pH, TDS, KH, Cálcio, Magnésio, Nitrato, Fosfato)
+  const updateManualParams = useCallback((params: {
+    ph?: number;
+    tds?: number;
+    kh?: number;
+    calcium?: number;
+    magnesium?: number;
+    nitrate?: number;
+    phosphate?: number;
+  }) => {
     const now = new Date();
-    setMarineParams(prev => ({
-      ...prev,
-      ph,
-      phHistory: [...prev.phHistory, { timestamp: now, value: ph }].slice(-25),
-      tds,
-      tdsHistory: [...prev.tdsHistory, { timestamp: now, value: tds }].slice(-25),
-    }));
+    setMarineParams(prev => {
+      const updated = { ...prev };
+      
+      if (params.ph !== undefined) {
+        updated.ph = params.ph;
+        updated.phHistory = [...prev.phHistory, { timestamp: now, value: params.ph }].slice(-25);
+      }
+      if (params.tds !== undefined) {
+        updated.tds = params.tds;
+        updated.tdsHistory = [...prev.tdsHistory, { timestamp: now, value: params.tds }].slice(-25);
+      }
+      if (params.kh !== undefined) {
+        updated.kh = params.kh;
+        updated.khHistory = [...prev.khHistory, { timestamp: now, value: params.kh }].slice(-25);
+      }
+      if (params.calcium !== undefined) {
+        updated.calcium = params.calcium;
+        updated.calciumHistory = [...prev.calciumHistory, { timestamp: now, value: params.calcium }].slice(-25);
+      }
+      if (params.magnesium !== undefined) {
+        updated.magnesium = params.magnesium;
+        updated.magnesiumHistory = [...prev.magnesiumHistory, { timestamp: now, value: params.magnesium }].slice(-25);
+      }
+      if (params.nitrate !== undefined) {
+        updated.nitrate = params.nitrate;
+        updated.nitrateHistory = [...prev.nitrateHistory, { timestamp: now, value: params.nitrate }].slice(-25);
+      }
+      if (params.phosphate !== undefined) {
+        updated.phosphate = params.phosphate;
+        updated.phosphateHistory = [...prev.phosphateHistory, { timestamp: now, value: params.phosphate }].slice(-25);
+      }
+      
+      return updated;
+    });
   }, []);
 
   return {
