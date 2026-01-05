@@ -1,4 +1,4 @@
-import { Droplets, Waves, Activity, AlertTriangle } from 'lucide-react';
+import { Droplets, Waves, Activity, AlertTriangle, Atom, FlaskConical } from 'lucide-react';
 import { MarineParameters } from '@/types/aquarium';
 
 interface QuickStatsProps {
@@ -19,16 +19,23 @@ export function QuickStats({ params, alertCount }: QuickStatsProps) {
     return 'alert';
   };
 
-  const getTdsStatus = (tds: number) => {
-    if (tds >= 100 && tds <= 300) return 'optimal';
-    if (tds >= 50 && tds <= 400) return 'warning';
+  const getKhStatus = (kh: number) => {
+    if (kh >= 7 && kh <= 11) return 'optimal';
+    if (kh >= 6 && kh <= 12) return 'warning';
+    return 'alert';
+  };
+
+  const getCalciumStatus = (calcium: number) => {
+    if (calcium >= 400 && calcium <= 450) return 'optimal';
+    if (calcium >= 380 && calcium <= 480) return 'warning';
     return 'alert';
   };
 
   const stats = [
     { icon: Droplets, label: 'pH', value: params.ph.toFixed(2), status: getPhStatus(params.ph), unit: '' },
     { icon: Waves, label: 'Salinidade', value: params.salinity.toFixed(3), status: getSalinityStatus(params.salinity), unit: 'SG' },
-    { icon: Activity, label: 'TDS', value: params.tds.toString(), status: getTdsStatus(params.tds), unit: 'ppm' },
+    { icon: FlaskConical, label: 'KH', value: params.kh.toFixed(1), status: getKhStatus(params.kh), unit: 'dKH' },
+    { icon: Atom, label: 'Cálcio', value: params.calcium.toString(), status: getCalciumStatus(params.calcium), unit: 'ppm' },
     { icon: AlertTriangle, label: 'Alertas', value: alertCount.toString(), status: alertCount > 0 ? 'alert' : 'optimal', unit: '' },
   ];
 
@@ -42,20 +49,20 @@ export function QuickStats({ params, alertCount }: QuickStatsProps) {
   };
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
       {stats.map((stat) => (
         <div 
           key={stat.label}
-          className="glass-card p-4 flex items-center gap-3 hover:border-primary/30 transition-all duration-300 hover:scale-[1.02]"
+          className="glass-card p-3 flex items-center gap-2.5 hover:border-primary/30 transition-all duration-300 hover:scale-[1.02]"
         >
-          <div className={`p-2.5 rounded-xl ${getStatusColor(stat.status)}`}>
-            <stat.icon className="w-5 h-5" />
+          <div className={`p-2 rounded-xl ${getStatusColor(stat.status)}`}>
+            <stat.icon className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">{stat.label}</p>
-            <p className="text-xl font-bold">
+            <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+            <p className="text-lg font-bold leading-tight">
               {stat.value}
-              {stat.unit && <span className="text-xs font-normal text-muted-foreground ml-1">{stat.unit}</span>}
+              {stat.unit && <span className="text-[9px] font-normal text-muted-foreground ml-0.5">{stat.unit}</span>}
             </p>
           </div>
         </div>
