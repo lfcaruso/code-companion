@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 
 interface ManualParamsUpdate {
   ph?: number;
+  salinity?: number;
   tds?: number;
   kh?: number;
   calcium?: number;
@@ -92,6 +93,7 @@ export function MarineParametersCard({ params, onUpdateManualParams }: MarinePar
   const [isEditing, setIsEditing] = useState(false);
   const [editValues, setEditValues] = useState({
     ph: params.ph.toString(),
+    salinity: params.salinity.toString(),
     tds: params.tds.toString(),
     kh: params.kh.toString(),
     calcium: params.calcium.toString(),
@@ -129,7 +131,7 @@ export function MarineParametersCard({ params, onUpdateManualParams }: MarinePar
       chartData: params.salinityHistory.map(r => ({ time: format(r.timestamp, 'HH:mm'), value: r.value })),
       color: 'hsl(var(--accent))',
       idealRange: '1.024 - 1.026 SG',
-      isManual: false,
+      isManual: true,
     },
     {
       id: 'kh',
@@ -220,6 +222,9 @@ export function MarineParametersCard({ params, onUpdateManualParams }: MarinePar
       const ph = parseFloat(editValues.ph);
       if (!isNaN(ph)) updates.ph = ph;
       
+      const salinity = parseFloat(editValues.salinity);
+      if (!isNaN(salinity)) updates.salinity = salinity;
+      
       const tds = parseInt(editValues.tds);
       if (!isNaN(tds)) updates.tds = tds;
       
@@ -255,9 +260,10 @@ export function MarineParametersCard({ params, onUpdateManualParams }: MarinePar
             variant="ghost"
             size="sm"
             onClick={() => {
-              if (!isEditing) {
+            if (!isEditing) {
                 setEditValues({
                   ph: params.ph.toString(),
+                  salinity: params.salinity.toString(),
                   tds: params.tds.toString(),
                   kh: params.kh.toString(),
                   calcium: params.calcium.toString(),
@@ -288,6 +294,16 @@ export function MarineParametersCard({ params, onUpdateManualParams }: MarinePar
                   step="0.01"
                   value={editValues.ph}
                   onChange={(e) => handleEditChange('ph', e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Salinidade (SG)</label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  value={editValues.salinity}
+                  onChange={(e) => handleEditChange('salinity', e.target.value)}
                   className="h-8 text-sm"
                 />
               </div>
