@@ -51,7 +51,14 @@ export function RelayCard({ relay, onToggle, onUpdate }: RelayCardProps) {
               />
             </div>
             <div>
-              <h4 className="font-medium text-sm">{relay.name}</h4>
+              <div className="flex items-center gap-2">
+                <h4 className="font-medium text-sm">{relay.name}</h4>
+                {relay.autoMode && (
+                  <span className="text-[10px] font-medium text-accent bg-accent/10 px-1.5 py-0.5 rounded-full">
+                    AUTO
+                  </span>
+                )}
+              </div>
               <span className={`text-xs ${relay.state ? 'text-primary' : 'text-muted-foreground'}`}>
                 {relay.state ? 'Ligado' : 'Desligado'}
               </span>
@@ -85,14 +92,6 @@ export function RelayCard({ relay, onToggle, onUpdate }: RelayCardProps) {
           </button>
         </div>
 
-        {/* Auto mode indicator */}
-        {relay.autoMode && (
-          <div className="absolute top-2 right-2">
-            <span className="text-[10px] font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full">
-              AUTO
-            </span>
-          </div>
-        )}
       </div>
 
       <TimerModal 
