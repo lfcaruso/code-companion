@@ -49,6 +49,30 @@ interface ParameterValues {
   tds: number;
 }
 
+const normalizeSalinitySg = (value: unknown): number => {
+  const num = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(num)) return NaN;
+  // Accept "1025" style input (1025 -> 1.025)
+  if (num >= 1000) return num / 1000;
+  return num;
+};
+
+const normalizeLoadedSettings = (raw: unknown): SystemSettings => {
+  if (!raw || typeof raw !== 'object') return defaultSettings;
+
+  const candidate = raw as Partial<SystemSettings>;
+
+  const salinityMin = normalizeSalinitySg(candidate.salinityMin);
+  const salinityMax = normalizeSalinitySg(candidate.salinityMax);
+
+  return {
+    ...defaultSettings,
+    ...candidate,
+    salinityMin: Number.isFinite(salinityMin) ? salinityMin : defaultSettings.salinityMin,
+    salinityMax: Number.isFinite(salinityMax) ? salinityMax : defaultSettings.salinityMax,
+  };
+};
+
 // Audio context for alert sounds
 let audioContext: AudioContext | null = null;
 
@@ -99,24 +123,24 @@ export function useAlerts(params: ParameterValues) {
   useEffect(() => {
     const saved = localStorage.getItem('aquarium-settings');
     if (saved) {
-      setSettings(JSON.parse(saved));
+      setSettings(normalizeLoadedSettings(JSON.parse(saved)));
     }
-    
+
     // Listen for settings changes
     const handleStorageChange = () => {
       const updated = localStorage.getItem('aquarium-settings');
       if (updated) {
-        setSettings(JSON.parse(updated));
+        setSettings(normalizeLoadedSettings(JSON.parse(updated)));
       }
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
-    
+
     // Also poll for changes (for same-tab updates)
     const interval = setInterval(() => {
       const updated = localStorage.getItem('aquarium-settings');
       if (updated) {
-        const parsed = JSON.parse(updated);
+        const parsed = normalizeLoadedSettings(JSON.parse(updated));
         setSettings(prev => {
           if (JSON.stringify(prev) !== JSON.stringify(parsed)) {
             return parsed;
@@ -125,7 +149,7 @@ export function useAlerts(params: ParameterValues) {
         });
       }
     }, 1000);
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(interval);
@@ -180,6 +204,10 @@ export function useAlerts(params: ParameterValues) {
     setAlerts([]);
   }, []);
 
+  const clearAlertsByKey = useCallback((keyPrefix: string) => {
+    setAlerts(prev => prev.filter(a => !a.id.startsWith(keyPrefix)));
+  }, []);
+
   // Check parameters against limits
   useEffect(() => {
     if (!settings.alertsEnabled) return;
@@ -189,37 +217,77 @@ export function useAlerts(params: ParameterValues) {
     // Temperature checks
     if (temperature < settings.tempMin) {
       addAlert('error', `Temperatura baixa: ${temperature.toFixed(1)}°C (mín: ${settings.tempMin}°C)`, 'temp-low');
-    } else if (temperature > settings.tempMax) {
+    } else {
+      clearAlertsByKey('temp-low');
+    }
+
+    if (temperature > settings.tempMax) {
       addAlert('error', `Temperatura alta: ${temperature.toFixed(1)}°C (máx: ${settings.tempMax}°C)`, 'temp-high');
+    } else {
+      clearAlertsByKey('temp-high');
     }
 
     // pH checks (manual input)
     if (settings.phAlertEnabled) {
       if (ph < settings.phMin) {
         addAlert('warning', `pH baixo: ${ph.toFixed(2)} (mín: ${settings.phMin})`, 'ph-low');
-      } else if (ph > settings.phMax) {
-        addAlert('warning', `pH alto: ${ph.toFixed(2)} (máx: ${settings.phMax})`, 'ph-high');
+      } else {
+        clearAlertsByKey('ph-low');
       }
+
+      if (ph > settings.phMax) {
+        addAlert('warning', `pH alto: ${ph.toFixed(2)} (máx: ${settings.phMax})`, 'ph-high');
+      } else {
+        clearAlertsByKey('ph-high');
+      }
+    } else {
+      clearAlertsByKey('ph-low');
+      clearAlertsByKey('ph-high');
     }
 
     // Salinity checks (SG - Specific Gravity)
-    if (settings.salinityAlertEnabled) {
-      if (salinity < settings.salinityMin) {
-        addAlert('warning', `Salinidade baixa: ${salinity.toFixed(3)} SG (mín: ${settings.salinityMin})`, 'sal-low');
-      } else if (salinity > settings.salinityMax) {
-        addAlert('warning', `Salinidade alta: ${salinity.toFixed(3)} SG (máx: ${settings.salinityMax})`, 'sal-high');
+    const salinitySg = normalizeSalinitySg(salinity);
+    const salMin = normalizeSalinitySg(settings.salinityMin);
+    const salMax = normalizeSalinitySg(settings.salinityMax);
+
+    const hasValidSalinity =
+      Number.isFinite(salinitySg) && Number.isFinite(salMin) && Number.isFinite(salMax);
+
+    if (settings.salinityAlertEnabled && hasValidSalinity) {
+      if (salinitySg < salMin) {
+        addAlert('warning', `Salinidade baixa: ${salinitySg.toFixed(3)} SG (mín: ${salMin.toFixed(3)})`, 'sal-low');
+      } else {
+        clearAlertsByKey('sal-low');
       }
+
+      if (salinitySg > salMax) {
+        addAlert('warning', `Salinidade alta: ${salinitySg.toFixed(3)} SG (máx: ${salMax.toFixed(3)})`, 'sal-high');
+      } else {
+        clearAlertsByKey('sal-high');
+      }
+    } else {
+      clearAlertsByKey('sal-low');
+      clearAlertsByKey('sal-high');
     }
 
     // TDS checks (manual input)
     if (settings.tdsAlertEnabled) {
       if (tds < settings.tdsMin) {
         addAlert('info', `TDS baixo: ${tds} ppm (mín: ${settings.tdsMin} ppm)`, 'tds-low');
-      } else if (tds > settings.tdsMax) {
-        addAlert('info', `TDS alto: ${tds} ppm (máx: ${settings.tdsMax} ppm)`, 'tds-high');
+      } else {
+        clearAlertsByKey('tds-low');
       }
+
+      if (tds > settings.tdsMax) {
+        addAlert('info', `TDS alto: ${tds} ppm (máx: ${settings.tdsMax} ppm)`, 'tds-high');
+      } else {
+        clearAlertsByKey('tds-high');
+      }
+    } else {
+      clearAlertsByKey('tds-low');
+      clearAlertsByKey('tds-high');
     }
-  }, [params, settings, addAlert]);
+  }, [params, settings, addAlert, clearAlertsByKey]);
 
   return {
     alerts,
