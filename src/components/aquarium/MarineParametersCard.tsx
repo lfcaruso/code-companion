@@ -215,6 +215,17 @@ export function MarineParametersCard({ params, onUpdateManualParams }: MarinePar
 
   const activeParam = parameters.find(p => p.id === activeTab) || parameters[0];
 
+  // Convert salinity input to SG format (accepts 1025 or 1.025)
+  const normalizeSalinity = (value: string): number | undefined => {
+    const num = parseFloat(value);
+    if (isNaN(num)) return undefined;
+    // If value is >= 1000, assume it's in ppt-like format (e.g., 1025 -> 1.025)
+    if (num >= 1000) {
+      return num / 1000;
+    }
+    return num;
+  };
+
   const handleSaveManual = () => {
     if (onUpdateManualParams) {
       const updates: ManualParamsUpdate = {};
@@ -222,8 +233,8 @@ export function MarineParametersCard({ params, onUpdateManualParams }: MarinePar
       const ph = parseFloat(editValues.ph);
       if (!isNaN(ph)) updates.ph = ph;
       
-      const salinity = parseFloat(editValues.salinity);
-      if (!isNaN(salinity)) updates.salinity = salinity;
+      const salinity = normalizeSalinity(editValues.salinity);
+      if (salinity !== undefined) updates.salinity = salinity;
       
       const tds = parseInt(editValues.tds);
       if (!isNaN(tds)) updates.tds = tds;
@@ -298,10 +309,11 @@ export function MarineParametersCard({ params, onUpdateManualParams }: MarinePar
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Salinidade (SG)</label>
+                <label className="text-xs text-muted-foreground">Salinidade (1.025 ou 1025)</label>
                 <Input
                   type="number"
-                  step="0.001"
+                  step="any"
+                  placeholder="1.025 ou 1025"
                   value={editValues.salinity}
                   onChange={(e) => handleEditChange('salinity', e.target.value)}
                   className="h-8 text-sm"
