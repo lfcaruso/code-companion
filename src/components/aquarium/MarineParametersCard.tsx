@@ -295,92 +295,92 @@ export function MarineParametersCard({ params, onUpdateManualParams }: MarinePar
       <CardContent className="space-y-4">
         {/* Manual Input Form */}
         {isEditing && (
-          <div className="p-3 rounded-lg bg-secondary/50 border border-border/30 space-y-3">
-            <p className="text-xs text-muted-foreground">Inserir valores manualmente</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">pH</label>
+          <div className="p-4 rounded-lg bg-secondary/50 border border-border/30 space-y-4">
+            <p className="text-sm font-medium text-foreground">Inserir valores manualmente</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm text-muted-foreground">pH</label>
                 <Input
                   type="number"
                   step="0.01"
                   value={editValues.ph}
                   onChange={(e) => handleEditChange('ph', e.target.value)}
-                  className="h-8 text-sm"
+                  className="h-10"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Salinidade (1.025 ou 1025)</label>
+              <div className="space-y-2">
+                <label className="text-sm text-muted-foreground">Salinidade (1.025 ou 1025)</label>
                 <Input
                   type="number"
                   step="any"
                   placeholder="1.025 ou 1025"
                   value={editValues.salinity}
                   onChange={(e) => handleEditChange('salinity', e.target.value)}
-                  className="h-8 text-sm"
+                  className="h-10"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">KH (dKH)</label>
+              <div className="space-y-2">
+                <label className="text-sm text-muted-foreground">KH (dKH)</label>
                 <Input
                   type="number"
                   step="0.1"
                   value={editValues.kh}
                   onChange={(e) => handleEditChange('kh', e.target.value)}
-                  className="h-8 text-sm"
+                  className="h-10"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Cálcio (ppm)</label>
+              <div className="space-y-2">
+                <label className="text-sm text-muted-foreground">Cálcio (ppm)</label>
                 <Input
                   type="number"
                   step="1"
                   value={editValues.calcium}
                   onChange={(e) => handleEditChange('calcium', e.target.value)}
-                  className="h-8 text-sm"
+                  className="h-10"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Magnésio (ppm)</label>
+              <div className="space-y-2">
+                <label className="text-sm text-muted-foreground">Magnésio (ppm)</label>
                 <Input
                   type="number"
                   step="1"
                   value={editValues.magnesium}
                   onChange={(e) => handleEditChange('magnesium', e.target.value)}
-                  className="h-8 text-sm"
+                  className="h-10"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Nitrato (ppm)</label>
+              <div className="space-y-2">
+                <label className="text-sm text-muted-foreground">Nitrato (ppm)</label>
                 <Input
                   type="number"
                   step="0.1"
                   value={editValues.nitrate}
                   onChange={(e) => handleEditChange('nitrate', e.target.value)}
-                  className="h-8 text-sm"
+                  className="h-10"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Fosfato (ppm)</label>
+              <div className="space-y-2">
+                <label className="text-sm text-muted-foreground">Fosfato (ppm)</label>
                 <Input
                   type="number"
                   step="0.01"
                   value={editValues.phosphate}
                   onChange={(e) => handleEditChange('phosphate', e.target.value)}
-                  className="h-8 text-sm"
+                  className="h-10"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">TDS (ppm)</label>
+              <div className="space-y-2">
+                <label className="text-sm text-muted-foreground">TDS (ppm)</label>
                 <Input
                   type="number"
                   step="1"
                   value={editValues.tds}
                   onChange={(e) => handleEditChange('tds', e.target.value)}
-                  className="h-8 text-sm"
+                  className="h-10"
                 />
               </div>
             </div>
-            <Button onClick={handleSaveManual} size="sm" className="w-full">
+            <Button onClick={handleSaveManual} size="lg" className="w-full">
               Salvar
             </Button>
           </div>
