@@ -98,15 +98,15 @@ const Index = () => {
             <MarineParametersCard params={marineParams} onUpdateManualParams={updateManualParams} />
           </div>
 
-          {/* Alerts Panel - separate row */}
-          <AlertsPanel 
-            alerts={alerts}
-            onDismiss={dismissAlert}
-            onClearAll={clearAllAlerts}
-          />
-
-          {/* Energy Card */}
-          <EnergyCard energy={energy} />
+          {/* Energy and Alerts Row */}
+          <div className="grid lg:grid-cols-2 gap-6">
+            <EnergyCard energy={energy} />
+            <AlertsPanel 
+              alerts={alerts}
+              onDismiss={dismissAlert}
+              onClearAll={clearAllAlerts}
+            />
+          </div>
 
           {/* Relays Section */}
           <div>
