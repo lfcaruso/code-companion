@@ -85,8 +85,8 @@ const Index = () => {
           {/* Quick Stats */}
           <QuickStats params={marineParams} alertCount={alerts.length} />
 
-          {/* Main Grid - Temperature, Marine Parameters, and Alerts */}
-          <div className="grid lg:grid-cols-3 gap-6">
+          {/* Main Grid - Temperature and Marine Parameters */}
+          <div className="grid lg:grid-cols-2 gap-6">
             {/* Temperature */}
             <TemperatureCard 
               current={temperature}
@@ -96,14 +96,14 @@ const Index = () => {
 
             {/* Marine Parameters */}
             <MarineParametersCard params={marineParams} onUpdateManualParams={updateManualParams} />
-
-            {/* Alerts Panel */}
-            <AlertsPanel 
-              alerts={alerts}
-              onDismiss={dismissAlert}
-              onClearAll={clearAllAlerts}
-            />
           </div>
+
+          {/* Alerts Panel - separate row */}
+          <AlertsPanel 
+            alerts={alerts}
+            onDismiss={dismissAlert}
+            onClearAll={clearAllAlerts}
+          />
 
           {/* Energy Card */}
           <EnergyCard energy={energy} />
