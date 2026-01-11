@@ -1,6 +1,25 @@
-// ESP32 API Service for aquarium data
-// When served from ESP32, uses relative URLs (same origin)
-// Custom URL can be set for development/testing purposes
+/**
+ * ESP32 API Service for Aquarium Monitoring System
+ * 
+ * EMBEDDED MODE (Cartão SD / ESP32):
+ * - All files (HTML, CSS, JS) are served from microSD card connected to ESP32
+ * - API endpoints use relative URLs (same origin) - no CORS issues
+ * - No external dependencies required
+ * 
+ * API ENDPOINTS (ESP32 must implement):
+ * - GET  /api/sensors           - Returns sensor data (temperature, relays, energy)
+ * - POST /api/relay/:id         - Toggle relay state { state: boolean }
+ * - POST /api/relay/:id/timer   - Configure relay timer
+ * - POST /api/relay/:id/name    - Update relay name
+ * - POST /api/temperature/setpoint - Set temperature target
+ * - GET  /api/config            - Read EEPROM configuration
+ * - POST /api/config            - Save configuration to EEPROM
+ * - POST /api/config/reset      - Reset to factory defaults
+ * 
+ * DEVELOPMENT MODE:
+ * - Custom URL can be set via ConnectionSettings dialog
+ * - Stored in localStorage for persistence
+ */
 
 const getDefaultBaseUrl = (): string => {
   // Check if custom URL is set in localStorage (for development/external access)
@@ -8,7 +27,7 @@ const getDefaultBaseUrl = (): string => {
   if (customUrl) {
     return customUrl;
   }
-  // Default to same origin (empty string) when served from ESP32
+  // Default to same origin (empty string) when served from ESP32's SD card
   return '';
 };
 
