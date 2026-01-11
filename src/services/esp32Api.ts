@@ -3,18 +3,44 @@
  * 
  * EMBEDDED MODE (Cartão SD / ESP32):
  * - All files (HTML, CSS, JS) are served from microSD card connected to ESP32
+ * - All data is stored on microSD card - NO external database required
  * - API endpoints use relative URLs (same origin) - no CORS issues
- * - No external dependencies required
+ * - Portable: just move the ESP32+SD card to any location
+ * 
+ * STORAGE STRUCTURE ON SD CARD:
+ * /
+ * ├── index.html, assets/      (Web interface files)
+ * ├── data/
+ * │   ├── config.json          (System configuration)
+ * │   ├── relays.json          (Relay names and settings)
+ * │   ├── parameters.json      (Manual parameter readings)
+ * │   └── history/
+ * │       ├── temp_YYYY-MM.json    (Temperature history by month)
+ * │       ├── params_YYYY-MM.json  (Parameters history by month)
+ * │       └── energy_YYYY-MM.json  (Energy history by month)
  * 
  * API ENDPOINTS (ESP32 must implement):
+ * 
+ * SENSORS & CONTROL:
  * - GET  /api/sensors           - Returns sensor data (temperature, relays, energy)
  * - POST /api/relay/:id         - Toggle relay state { state: boolean }
  * - POST /api/relay/:id/timer   - Configure relay timer
- * - POST /api/relay/:id/name    - Update relay name
+ * - POST /api/relay/:id/name    - Update relay name (saves to SD)
  * - POST /api/temperature/setpoint - Set temperature target
- * - GET  /api/config            - Read EEPROM configuration
- * - POST /api/config            - Save configuration to EEPROM
+ * 
+ * CONFIGURATION (EEPROM + SD):
+ * - GET  /api/config            - Read configuration
+ * - POST /api/config            - Save configuration
  * - POST /api/config/reset      - Reset to factory defaults
+ * 
+ * DATA PERSISTENCE (SD Card):
+ * - GET  /api/data/parameters   - Read manual parameters
+ * - POST /api/data/parameters   - Save manual parameters
+ * - GET  /api/data/history/:type/:year/:month - Read history data
+ * - POST /api/data/history/:type - Append to history
+ * - GET  /api/data/export       - Export all data as ZIP
+ * - POST /api/data/import       - Import data from ZIP
+ * - DELETE /api/data/history/:type/:year/:month - Delete specific history file
  * 
  * DEVELOPMENT MODE:
  * - Custom URL can be set via ConnectionSettings dialog
@@ -83,6 +109,39 @@ export interface ESP32ConfigData {
   alertsEnabled: boolean;
   soundEnabled: boolean;
   autoModeEnabled: boolean;
+}
+
+// Manual parameters stored on SD card
+export interface ManualParametersData {
+  ph: number;
+  kh: number;
+  calcium: number;
+  magnesium: number;
+  nitrate: number;
+  phosphate: number;
+  lastUpdated: string;
+}
+
+// History entry for time-series data
+export interface HistoryEntry {
+  timestamp: string;
+  value: number;
+}
+
+// History data structure stored on SD card
+export interface HistoryData {
+  type: 'temperature' | 'ph' | 'salinity' | 'kh' | 'calcium' | 'magnesium' | 'nitrate' | 'phosphate' | 'energy';
+  year: number;
+  month: number;
+  entries: HistoryEntry[];
+}
+
+// Relay configuration stored on SD card
+export interface RelayConfigData {
+  id: number;
+  name: string;
+  icon: string;
+  isFixed: boolean;
 }
 
 export interface ESP32Response<T> {
@@ -332,6 +391,224 @@ class ESP32ApiService {
       this.isConnected = true;
       this.lastError = null;
       return { success: true, data };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // ========== SD CARD DATA PERSISTENCE ==========
+
+  // Fetch manual parameters from SD card
+  async fetchManualParameters(): Promise<ESP32Response<ManualParametersData>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/data/parameters`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true, data };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Save manual parameters to SD card
+  async saveManualParameters(params: ManualParametersData): Promise<ESP32Response<void>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/data/parameters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Fetch history data from SD card
+  async fetchHistory(type: string, year: number, month: number): Promise<ESP32Response<HistoryData>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/data/history/${type}/${year}/${month}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true, data };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Append entry to history on SD card
+  async appendHistory(type: string, entry: HistoryEntry): Promise<ESP32Response<void>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/data/history/${type}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Delete specific history file from SD card
+  async deleteHistory(type: string, year: number, month: number): Promise<ESP32Response<void>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/data/history/${type}/${year}/${month}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Export all data as downloadable file
+  async exportData(): Promise<ESP32Response<Blob>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/data/export`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(30000), // Longer timeout for export
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true, data: blob };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Import data from file
+  async importData(file: File): Promise<ESP32Response<void>> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${this.baseUrl}/api/data/import`, {
+        method: 'POST',
+        body: formData,
+        signal: AbortSignal.timeout(30000), // Longer timeout for import
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Fetch relay configurations from SD card
+  async fetchRelayConfigs(): Promise<ESP32Response<RelayConfigData[]>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/data/relays`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true, data };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Save relay configurations to SD card
+  async saveRelayConfigs(configs: RelayConfigData[]): Promise<ESP32Response<void>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/data/relays`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(configs),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true };
     } catch (error) {
       this.isConnected = false;
       this.lastError = error instanceof Error ? error.message : 'Unknown error';
