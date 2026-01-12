@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Relay, TemperatureReading, EnergyData, Alert, MarineParameters, ParameterReading } from '@/types/aquarium';
-import { esp32Api, ESP32SensorData } from '@/services/esp32Api';
+import { esp32Api, ESP32SensorData, ManualParametersData, ParametersHistoryEntry } from '@/services/esp32Api';
 import { toast } from 'sonner';
 
 // Relays 0 and 1 have fixed names (Aquecedor and Resfriamento - controlled by temperature)
@@ -80,29 +80,104 @@ export function useAquariumData() {
     phosphateHistory: [],
   });
 
-  // Initialize history data
+  // Load saved parameters from SD card on mount
   useEffect(() => {
-    const tempHistory = generateParameterHistory(25.5, 0.5, 1);
-    setTemperatureHistory(tempHistory);
-    
-    setMarineParams({
-      ph: 8.2,
-      phHistory: generateParameterHistory(8.2, 0.15, 2),
-      salinity: 1.025,
-      salinityHistory: generateParameterHistory(1.025, 0.002, 3),
-      tds: 180,
-      tdsHistory: generateParameterHistory(180, 20, 0),
-      kh: 8.0,
-      khHistory: generateParameterHistory(8.0, 0.5, 1),
-      calcium: 420,
-      calciumHistory: generateParameterHistory(420, 20, 0),
-      magnesium: 1350,
-      magnesiumHistory: generateParameterHistory(1350, 50, 0),
-      nitrate: 5,
-      nitrateHistory: generateParameterHistory(5, 2, 1),
-      phosphate: 0.03,
-      phosphateHistory: generateParameterHistory(0.03, 0.01, 2),
-    });
+    const loadSavedData = async () => {
+      // First, load current parameters from SD card
+      const paramsResponse = await esp32Api.fetchManualParameters();
+      if (paramsResponse.success && paramsResponse.data) {
+        const data = paramsResponse.data;
+        setMarineParams(prev => ({
+          ...prev,
+          ph: data.ph ?? prev.ph,
+          salinity: data.salinity ?? prev.salinity,
+          tds: data.tds ?? prev.tds,
+          kh: data.kh ?? prev.kh,
+          calcium: data.calcium ?? prev.calcium,
+          magnesium: data.magnesium ?? prev.magnesium,
+          nitrate: data.nitrate ?? prev.nitrate,
+          phosphate: data.phosphate ?? prev.phosphate,
+        }));
+      }
+
+      // Then, load history from SD card (30 days)
+      const historyResponse = await esp32Api.fetchParametersHistory();
+      if (historyResponse.success && historyResponse.data) {
+        const entries = historyResponse.data.entries || [];
+        
+        // Convert history entries to ParameterReading format
+        const phHistory: ParameterReading[] = [];
+        const salinityHistory: ParameterReading[] = [];
+        const tdsHistory: ParameterReading[] = [];
+        const khHistory: ParameterReading[] = [];
+        const calciumHistory: ParameterReading[] = [];
+        const magnesiumHistory: ParameterReading[] = [];
+        const nitrateHistory: ParameterReading[] = [];
+        const phosphateHistory: ParameterReading[] = [];
+
+        entries.forEach(entry => {
+          const timestamp = new Date(entry.timestamp);
+          if (entry.ph !== undefined) phHistory.push({ timestamp, value: entry.ph });
+          if (entry.salinity !== undefined) salinityHistory.push({ timestamp, value: entry.salinity });
+          if (entry.tds !== undefined) tdsHistory.push({ timestamp, value: entry.tds });
+          if (entry.kh !== undefined) khHistory.push({ timestamp, value: entry.kh });
+          if (entry.calcium !== undefined) calciumHistory.push({ timestamp, value: entry.calcium });
+          if (entry.magnesium !== undefined) magnesiumHistory.push({ timestamp, value: entry.magnesium });
+          if (entry.nitrate !== undefined) nitrateHistory.push({ timestamp, value: entry.nitrate });
+          if (entry.phosphate !== undefined) phosphateHistory.push({ timestamp, value: entry.phosphate });
+        });
+
+        setMarineParams(prev => ({
+          ...prev,
+          phHistory: phHistory.length > 0 ? phHistory : prev.phHistory,
+          salinityHistory: salinityHistory.length > 0 ? salinityHistory : prev.salinityHistory,
+          tdsHistory: tdsHistory.length > 0 ? tdsHistory : prev.tdsHistory,
+          khHistory: khHistory.length > 0 ? khHistory : prev.khHistory,
+          calciumHistory: calciumHistory.length > 0 ? calciumHistory : prev.calciumHistory,
+          magnesiumHistory: magnesiumHistory.length > 0 ? magnesiumHistory : prev.magnesiumHistory,
+          nitrateHistory: nitrateHistory.length > 0 ? nitrateHistory : prev.nitrateHistory,
+          phosphateHistory: phosphateHistory.length > 0 ? phosphateHistory : prev.phosphateHistory,
+        }));
+
+        console.log(`📊 Carregado histórico de parâmetros: ${entries.length} registros`);
+      } else {
+        // If no saved data, initialize with simulated history for demo
+        const tempHistory = generateParameterHistory(25.5, 0.5, 1);
+        setTemperatureHistory(tempHistory);
+        
+        setMarineParams({
+          ph: 8.2,
+          phHistory: generateParameterHistory(8.2, 0.15, 2),
+          salinity: 1.025,
+          salinityHistory: generateParameterHistory(1.025, 0.002, 3),
+          tds: 180,
+          tdsHistory: generateParameterHistory(180, 20, 0),
+          kh: 8.0,
+          khHistory: generateParameterHistory(8.0, 0.5, 1),
+          calcium: 420,
+          calciumHistory: generateParameterHistory(420, 20, 0),
+          magnesium: 1350,
+          magnesiumHistory: generateParameterHistory(1350, 50, 0),
+          nitrate: 5,
+          nitrateHistory: generateParameterHistory(5, 2, 1),
+          phosphate: 0.03,
+          phosphateHistory: generateParameterHistory(0.03, 0.01, 2),
+        });
+      }
+    };
+
+    loadSavedData();
+
+    // Cleanup old history entries periodically (every hour)
+    const cleanupInterval = setInterval(() => {
+      esp32Api.cleanupParametersHistory().then(response => {
+        if (response.success && response.data && response.data.deletedCount > 0) {
+          console.log(`🧹 Limpeza de histórico: ${response.data.deletedCount} registros antigos removidos`);
+        }
+      });
+    }, 60 * 60 * 1000); // Every hour
+
+    return () => clearInterval(cleanupInterval);
   }, []);
 
   // Process ESP32 data and update state
@@ -279,7 +354,8 @@ export function useAquariumData() {
   }, []);
 
   // Update manual parameters (pH, Salinidade, TDS, KH, Cálcio, Magnésio, Nitrato, Fosfato)
-  const updateManualParams = useCallback((params: {
+  // And save to SD card for 30-day history
+  const updateManualParams = useCallback(async (params: {
     ph?: number;
     salinity?: number;
     tds?: number;
@@ -290,45 +366,80 @@ export function useAquariumData() {
     phosphate?: number;
   }) => {
     const now = new Date();
+    const timestamp = now.toISOString();
+    
+    // Update local state
     setMarineParams(prev => {
       const updated = { ...prev };
       
       if (params.ph !== undefined) {
         updated.ph = params.ph;
-        updated.phHistory = [...prev.phHistory, { timestamp: now, value: params.ph }].slice(-25);
+        updated.phHistory = [...prev.phHistory, { timestamp: now, value: params.ph }].slice(-720); // ~30 days with hourly readings
       }
       if (params.salinity !== undefined) {
         updated.salinity = params.salinity;
-        updated.salinityHistory = [...prev.salinityHistory, { timestamp: now, value: params.salinity }].slice(-25);
+        updated.salinityHistory = [...prev.salinityHistory, { timestamp: now, value: params.salinity }].slice(-720);
       }
       if (params.tds !== undefined) {
         updated.tds = params.tds;
-        updated.tdsHistory = [...prev.tdsHistory, { timestamp: now, value: params.tds }].slice(-25);
+        updated.tdsHistory = [...prev.tdsHistory, { timestamp: now, value: params.tds }].slice(-720);
       }
       if (params.kh !== undefined) {
         updated.kh = params.kh;
-        updated.khHistory = [...prev.khHistory, { timestamp: now, value: params.kh }].slice(-25);
+        updated.khHistory = [...prev.khHistory, { timestamp: now, value: params.kh }].slice(-720);
       }
       if (params.calcium !== undefined) {
         updated.calcium = params.calcium;
-        updated.calciumHistory = [...prev.calciumHistory, { timestamp: now, value: params.calcium }].slice(-25);
+        updated.calciumHistory = [...prev.calciumHistory, { timestamp: now, value: params.calcium }].slice(-720);
       }
       if (params.magnesium !== undefined) {
         updated.magnesium = params.magnesium;
-        updated.magnesiumHistory = [...prev.magnesiumHistory, { timestamp: now, value: params.magnesium }].slice(-25);
+        updated.magnesiumHistory = [...prev.magnesiumHistory, { timestamp: now, value: params.magnesium }].slice(-720);
       }
       if (params.nitrate !== undefined) {
         updated.nitrate = params.nitrate;
-        updated.nitrateHistory = [...prev.nitrateHistory, { timestamp: now, value: params.nitrate }].slice(-25);
+        updated.nitrateHistory = [...prev.nitrateHistory, { timestamp: now, value: params.nitrate }].slice(-720);
       }
       if (params.phosphate !== undefined) {
         updated.phosphate = params.phosphate;
-        updated.phosphateHistory = [...prev.phosphateHistory, { timestamp: now, value: params.phosphate }].slice(-25);
+        updated.phosphateHistory = [...prev.phosphateHistory, { timestamp: now, value: params.phosphate }].slice(-720);
       }
       
       return updated;
     });
-  }, []);
+
+    // Save current values to SD card
+    const currentParams: ManualParametersData = {
+      ph: params.ph ?? marineParams.ph,
+      salinity: params.salinity ?? marineParams.salinity,
+      tds: params.tds ?? marineParams.tds,
+      kh: params.kh ?? marineParams.kh,
+      calcium: params.calcium ?? marineParams.calcium,
+      magnesium: params.magnesium ?? marineParams.magnesium,
+      nitrate: params.nitrate ?? marineParams.nitrate,
+      phosphate: params.phosphate ?? marineParams.phosphate,
+      lastUpdated: timestamp,
+    };
+
+    const saveParamsResponse = await esp32Api.saveManualParameters(currentParams);
+    
+    // Save history entry to SD card
+    const historyEntry: ParametersHistoryEntry = {
+      timestamp,
+      ...params,
+    };
+
+    const saveHistoryResponse = await esp32Api.saveParametersHistoryEntry(historyEntry);
+
+    if (saveParamsResponse.success && saveHistoryResponse.success) {
+      toast.success('Parâmetros salvos no SD card', {
+        description: 'Histórico atualizado com sucesso'
+      });
+    } else if (!saveParamsResponse.success || !saveHistoryResponse.success) {
+      // Still saved locally, just notify about SD card issue
+      console.warn('⚠️ Parâmetros salvos localmente, mas falha ao salvar no SD card');
+    }
+  }, [marineParams]);
 
   return {
     temperature,
