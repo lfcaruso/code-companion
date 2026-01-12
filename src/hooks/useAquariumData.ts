@@ -46,7 +46,8 @@ const generateParameterHistory = (baseValue: number, variation: number, decimals
 
 export function useAquariumData() {
   const [temperature, setTemperature] = useState(25.5);
-  const [temperatureSetpoint, setTemperatureSetpoint] = useState(26.0);
+  const [temperatureSetpoint, setTemperatureSetpointState] = useState(26.0);
+  const [temperatureHysteresis, setTemperatureHysteresis] = useState(0.5);
   const [temperatureHistory, setTemperatureHistory] = useState<TemperatureReading[]>([]);
   const [relays, setRelays] = useState<Relay[]>(RELAY_DEFAULTS);
   const [energy, setEnergy] = useState<EnergyData>({
@@ -59,6 +60,7 @@ export function useAquariumData() {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const lastConnectionToast = useRef<number>(0);
+  const pendingSetpoint = useRef<number | null>(null);
   
   // Marine parameters - all are manual input (pH, Salinidade, TDS, KH, Cálcio, Magnésio, Nitrato, Fosfato)
   const [marineParams, setMarineParams] = useState<MarineParameters>({
@@ -186,7 +188,7 @@ export function useAquariumData() {
     
     // Update temperature
     setTemperature(data.temperature);
-    setTemperatureSetpoint(data.temperatureSetpoint);
+    setTemperatureSetpointState(data.temperatureSetpoint);
     setTemperatureHistory(prev => {
       const newHistory = [...prev, { timestamp: now, value: data.temperature }];
       return newHistory.slice(-25);
@@ -441,10 +443,33 @@ export function useAquariumData() {
     }
   }, [marineParams]);
 
+  // Update temperature setpoint and send to ESP32
+  const setTemperatureSetpoint = useCallback(async (newSetpoint: number) => {
+    // Update local state immediately
+    setTemperatureSetpointState(newSetpoint);
+    pendingSetpoint.current = newSetpoint;
+
+    // Send to ESP32
+    const response = await esp32Api.setTemperatureSetpoint(newSetpoint);
+    
+    if (response.success) {
+      toast.success('Setpoint atualizado', {
+        description: `Temperatura alvo: ${newSetpoint.toFixed(1)}°C`
+      });
+    } else {
+      toast.error('Erro ao atualizar setpoint', {
+        description: response.error
+      });
+    }
+    
+    pendingSetpoint.current = null;
+  }, []);
+
   return {
     temperature,
     temperatureSetpoint,
     setTemperatureSetpoint,
+    temperatureHysteresis,
     temperatureHistory,
     relays,
     toggleRelay,
