@@ -114,12 +114,33 @@ export interface ESP32ConfigData {
 // Manual parameters stored on SD card
 export interface ManualParametersData {
   ph: number;
+  salinity: number;
+  tds: number;
   kh: number;
   calcium: number;
   magnesium: number;
   nitrate: number;
   phosphate: number;
   lastUpdated: string;
+}
+
+// Parameters history entry stored on SD card (30 days retention)
+export interface ParametersHistoryEntry {
+  timestamp: string;
+  ph?: number;
+  salinity?: number;
+  tds?: number;
+  kh?: number;
+  calcium?: number;
+  magnesium?: number;
+  nitrate?: number;
+  phosphate?: number;
+}
+
+// Full parameters history stored on SD card
+export interface ParametersHistoryData {
+  entries: ParametersHistoryEntry[];
+  lastCleanup: string; // Last time old entries were removed
 }
 
 // History entry for time-series data
@@ -441,6 +462,78 @@ class ESP32ApiService {
       this.isConnected = true;
       this.lastError = null;
       return { success: true };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Fetch parameters history from SD card (30 days)
+  async fetchParametersHistory(): Promise<ESP32Response<ParametersHistoryData>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/data/parameters/history`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true, data };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Save parameters history entry to SD card (appends to history)
+  async saveParametersHistoryEntry(entry: ParametersHistoryEntry): Promise<ESP32Response<void>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/data/parameters/history`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true };
+    } catch (error) {
+      this.isConnected = false;
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: this.lastError };
+    }
+  }
+
+  // Cleanup old history entries (older than 30 days)
+  async cleanupParametersHistory(): Promise<ESP32Response<{ deletedCount: number }>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/data/parameters/history/cleanup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      this.isConnected = true;
+      this.lastError = null;
+      return { success: true, data };
     } catch (error) {
       this.isConnected = false;
       this.lastError = error instanceof Error ? error.message : 'Unknown error';

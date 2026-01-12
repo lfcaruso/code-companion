@@ -63,16 +63,39 @@ Após executar `npm run build`, copie o conteúdo da pasta `dist/` para a raiz d
 }
 ```
 
-### parameters.json (Parâmetros Manuais)
+### parameters.json (Parâmetros Manuais Atuais)
 ```json
 {
   "ph": 8.2,
+  "salinity": 1.025,
+  "tds": 180,
   "kh": 9.0,
   "calcium": 420,
   "magnesium": 1350,
   "nitrate": 5,
   "phosphate": 0.03,
   "lastUpdated": "2024-01-15T10:30:00Z"
+}
+```
+
+### parameters_history.json (Histórico de 30 dias)
+```json
+{
+  "entries": [
+    {
+      "timestamp": "2024-01-10T10:30:00Z",
+      "ph": 8.2,
+      "salinity": 1.025,
+      "kh": 9.0,
+      "calcium": 420
+    },
+    {
+      "timestamp": "2024-01-11T14:00:00Z",
+      "nitrate": 5,
+      "phosphate": 0.03
+    }
+  ],
+  "lastCleanup": "2024-01-15T00:00:00Z"
 }
 ```
 
@@ -175,14 +198,16 @@ Reseta para as configurações de fábrica.
 ### Persistência de Dados (SD Card)
 
 #### GET /api/data/parameters
-Retorna parâmetros manuais salvos (parameters.json).
+Retorna parâmetros manuais atuais (parameters.json).
 
 #### POST /api/data/parameters
-Salva parâmetros manuais (parameters.json).
+Salva parâmetros manuais atuais (parameters.json).
 
 ```json
 {
   "ph": 8.2,
+  "salinity": 1.025,
+  "tds": 180,
   "kh": 9.0,
   "calcium": 420,
   "magnesium": 1350,
@@ -192,13 +217,49 @@ Salva parâmetros manuais (parameters.json).
 }
 ```
 
+#### GET /api/data/parameters/history
+Retorna histórico de parâmetros manuais dos últimos 30 dias.
+
+```json
+{
+  "entries": [
+    {
+      "timestamp": "2024-01-10T10:30:00Z",
+      "ph": 8.2,
+      "salinity": 1.025,
+      "kh": 9.0
+    }
+  ],
+  "lastCleanup": "2024-01-15T00:00:00Z"
+}
+```
+
+#### POST /api/data/parameters/history
+Adiciona uma entrada ao histórico de parâmetros (appends to history).
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "ph": 8.2,
+  "kh": 9.0,
+  "calcium": 420
+}
+```
+
+#### POST /api/data/parameters/history/cleanup
+Remove entradas com mais de 30 dias do histórico. Retorna contagem de registros removidos.
+
+```json
+{ "deletedCount": 15 }
+```
+
 #### GET /api/data/history/:type/:year/:month
-Retorna histórico de um tipo específico para um mês.
-- Tipos: `temperature`, `ph`, `salinity`, `kh`, `calcium`, `magnesium`, `nitrate`, `phosphate`, `energy`
+Retorna histórico de um tipo específico para um mês (temperatura, energia, etc.).
+- Tipos: `temperature`, `energy`
 - Exemplo: `GET /api/data/history/temperature/2024/1`
 
 #### POST /api/data/history/:type
-Adiciona uma entrada ao histórico (cria arquivo do mês se não existir).
+Adiciona uma entrada ao histórico por tipo (cria arquivo do mês se não existir).
 
 ```json
 {
@@ -516,6 +577,9 @@ void setup() {
   // Persistência de dados (SD Card)
   server.on("/api/data/parameters", HTTP_GET, handleGetParameters);
   server.on("/api/data/parameters", HTTP_POST, handlePostParameters);
+  server.on("/api/data/parameters/history", HTTP_GET, handleGetParametersHistory);
+  server.on("/api/data/parameters/history", HTTP_POST, handlePostParametersHistory);
+  server.on("/api/data/parameters/history/cleanup", HTTP_POST, handleCleanupParametersHistory);
   server.on("/api/data/relays", HTTP_GET, handleGetRelays);
   server.on("/api/data/relays", HTTP_POST, handlePostRelays);
   server.on("/api/data/history/(\\w+)/(\\d+)/(\\d+)", HTTP_GET, handleGetHistory);
