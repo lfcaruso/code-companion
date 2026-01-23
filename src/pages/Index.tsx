@@ -27,6 +27,7 @@ const Index = () => {
     isConnected,
     connectionError,
     refreshConnection,
+    setTemperatureSetpoint,
   } = useAquariumData();
 
   const { alerts, dismissAlert, clearAllAlerts } = useAlerts({
@@ -92,6 +93,7 @@ const Index = () => {
               current={temperature}
               setpoint={temperatureSetpoint}
               history={temperatureHistory}
+              onSetpointChange={setTemperatureSetpoint}
             />
 
             {/* Marine Parameters */}
