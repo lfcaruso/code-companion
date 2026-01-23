@@ -1,17 +1,47 @@
-import { Thermometer, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Thermometer, TrendingUp, TrendingDown, Minus, Plus, Minus as MinusIcon } from 'lucide-react';
 import { TemperatureReading } from '@/types/aquarium';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 
 interface TemperatureCardProps {
   current: number;
   setpoint: number;
   history: TemperatureReading[];
+  onSetpointChange?: (newSetpoint: number) => void;
 }
 
-export function TemperatureCard({ current, setpoint, history }: TemperatureCardProps) {
+export function TemperatureCard({ current, setpoint, history, onSetpointChange }: TemperatureCardProps) {
+  const [localSetpoint, setLocalSetpoint] = useState(setpoint);
+  const [isAdjusting, setIsAdjusting] = useState(false);
+  
   const diff = current - setpoint;
   const status = Math.abs(diff) < 0.5 ? 'optimal' : diff > 0 ? 'high' : 'low';
+
+  const handleAdjust = (delta: number) => {
+    const newValue = Math.round((localSetpoint + delta) * 10) / 10;
+    const clamped = Math.max(18, Math.min(32, newValue)); // Limites seguros
+    setLocalSetpoint(clamped);
+    setIsAdjusting(true);
+  };
+
+  const handleConfirm = () => {
+    if (onSetpointChange) {
+      onSetpointChange(localSetpoint);
+    }
+    setIsAdjusting(false);
+  };
+
+  const handleCancel = () => {
+    setLocalSetpoint(setpoint);
+    setIsAdjusting(false);
+  };
+
+  // Sync local state when prop changes
+  if (!isAdjusting && localSetpoint !== setpoint) {
+    setLocalSetpoint(setpoint);
+  }
   
   const chartData = history.map(reading => ({
     time: format(reading.timestamp, 'HH:mm'),
@@ -50,11 +80,63 @@ export function TemperatureCard({ current, setpoint, history }: TemperatureCardP
           </div>
         </div>
         
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50">
-          {getTrendIcon()}
-          <span className="text-xs font-medium text-muted-foreground">
-            Setpoint: {setpoint.toFixed(1)}°C
-          </span>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50">
+            {getTrendIcon()}
+            <span className="text-xs font-medium text-muted-foreground">
+              Tendência
+            </span>
+          </div>
+          
+          {/* Setpoint Quick Adjust */}
+          <div className="flex items-center gap-2 p-2 rounded-xl bg-secondary/30 border border-border/50">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg hover:bg-primary/20"
+              onClick={() => handleAdjust(-0.5)}
+            >
+              <MinusIcon className="h-4 w-4" />
+            </Button>
+            
+            <div className="flex flex-col items-center min-w-[60px]">
+              <span className="text-xs text-muted-foreground">Setpoint</span>
+              <span className={`text-lg font-bold ${isAdjusting ? 'text-primary' : ''}`}>
+                {localSetpoint.toFixed(1)}°C
+              </span>
+            </div>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg hover:bg-primary/20"
+              onClick={() => handleAdjust(0.5)}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Confirm/Cancel buttons when adjusting */}
+          {isAdjusting && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleCancel}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleConfirm}
+              >
+                Confirmar
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
